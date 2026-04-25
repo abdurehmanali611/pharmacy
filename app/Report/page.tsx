@@ -1,6 +1,6 @@
 "use client";
 
-import { Cashout } from "@/lib/actions";
+import type { Cashout } from "./columns";
 import { DataTableClientWrapper } from "./DataTableClientWrapper";
 
 export default function CashoutsPage({ cashout }: { cashout: Cashout[] }) {
