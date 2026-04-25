@@ -21,9 +21,9 @@ export default function Home() {
           <Button asChild size="lg" className="px-8">
             <Link href="/Login">Sign in</Link>
           </Button>
-          <Button asChild size="lg" variant="secondary" className="px-8">
+          {/* <Button asChild size="lg" variant="secondary" className="px-8">
             <Link href="/Register">Create pharmacy</Link>
-          </Button>
+          </Button> */}
         </div>
 
         <div className="grid w-full gap-4 sm:grid-cols-3">
