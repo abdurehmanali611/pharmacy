@@ -54,7 +54,7 @@ export default function PharmacistView() {
   const [loading, setLoading] = useState(false);
   const [salesLoading, setSalesLoading] = useState(false);
 
-  const purchaseForm = useForm<z.infer<typeof purchase>>({
+  const purchaseForm = useForm<z.input<typeof purchase>, any, z.output<typeof purchase>>({
     resolver: zodResolver(purchase),
     defaultValues: {
       medicine_name: "",
@@ -103,7 +103,7 @@ export default function PharmacistView() {
     }
   }, [selectedMedicine, purchaseForm]);
 
-  const handleSubmitSale = async (data: z.infer<typeof purchase>) => {
+  const handleSubmitSale = async (data: z.output<typeof purchase>) => {
     setLoading(true);
     try {
       await CreatePurchase(
