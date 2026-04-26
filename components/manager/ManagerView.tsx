@@ -901,37 +901,53 @@ export default function ManagerView() {
                     </p>
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-background/40 p-3">
-                      <Badge variant="destructive">Out of stock</Badge>
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">0 units</p>
-                        <p className="text-xs text-muted-foreground">Cannot be sold until restocked.</p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="flex min-h-[92px] flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="destructive" className="shrink-0">
+                          Out of stock
+                        </Badge>
+                        <p className="text-sm font-semibold tabular-nums text-foreground">0 units</p>
                       </div>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Can’t be sold until restocked.
+                      </p>
                     </div>
 
-                    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-background/40 p-3">
-                      <Badge variant="destructive">Critical</Badge>
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">1–5 units</p>
-                        <p className="text-xs text-muted-foreground">Restock immediately.</p>
+                    <div className="flex min-h-[92px] flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="destructive" className="shrink-0">
+                          Critical
+                        </Badge>
+                        <p className="text-sm font-semibold tabular-nums text-foreground">1–5 units</p>
                       </div>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Restock now (very low).
+                      </p>
                     </div>
 
-                    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-background/40 p-3">
-                      <Badge variant="secondary">Low</Badge>
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">6–20 units</p>
-                        <p className="text-xs text-muted-foreground">Plan a restock soon.</p>
+                    <div className="flex min-h-[92px] flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="secondary" className="shrink-0">
+                          Low
+                        </Badge>
+                        <p className="text-sm font-semibold tabular-nums text-foreground">6–20 units</p>
                       </div>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Plan a restock soon.
+                      </p>
                     </div>
 
-                    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-background/40 p-3">
-                      <Badge variant="outline">OK</Badge>
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">21+ units</p>
-                        <p className="text-xs text-muted-foreground">Healthy stock level.</p>
+                    <div className="flex min-h-[92px] flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="outline" className="shrink-0">
+                          OK
+                        </Badge>
+                        <p className="text-sm font-semibold tabular-nums text-foreground">21+ units</p>
                       </div>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Healthy stock level.
+                      </p>
                     </div>
                   </div>
                 </div>
