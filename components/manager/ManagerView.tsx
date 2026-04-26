@@ -903,11 +903,13 @@ export default function ManagerView() {
 
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="flex min-h-[92px] flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant="destructive" className="shrink-0">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <Badge variant="destructive" className="w-fit shrink-0 px-2 py-0.5 text-xs">
                           Out of stock
                         </Badge>
-                        <p className="text-sm font-semibold tabular-nums text-foreground">0 units</p>
+                        <p className="text-sm font-semibold tabular-nums text-foreground whitespace-nowrap">
+                          0 units
+                        </p>
                       </div>
                       <p className="text-xs leading-relaxed text-muted-foreground">
                         Can’t be sold until restocked.
@@ -915,11 +917,13 @@ export default function ManagerView() {
                     </div>
 
                     <div className="flex min-h-[92px] flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant="destructive" className="shrink-0">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <Badge variant="destructive" className="w-fit shrink-0 px-2 py-0.5 text-xs">
                           Critical
                         </Badge>
-                        <p className="text-sm font-semibold tabular-nums text-foreground">1–5 units</p>
+                        <p className="text-sm font-semibold tabular-nums text-foreground whitespace-nowrap">
+                          1–5 units
+                        </p>
                       </div>
                       <p className="text-xs leading-relaxed text-muted-foreground">
                         Restock now (very low).
@@ -927,11 +931,13 @@ export default function ManagerView() {
                     </div>
 
                     <div className="flex min-h-[92px] flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant="secondary" className="shrink-0">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <Badge variant="secondary" className="w-fit shrink-0 px-2 py-0.5 text-xs">
                           Low
                         </Badge>
-                        <p className="text-sm font-semibold tabular-nums text-foreground">6–20 units</p>
+                        <p className="text-sm font-semibold tabular-nums text-foreground whitespace-nowrap">
+                          6–20 units
+                        </p>
                       </div>
                       <p className="text-xs leading-relaxed text-muted-foreground">
                         Plan a restock soon.
@@ -939,11 +945,13 @@ export default function ManagerView() {
                     </div>
 
                     <div className="flex min-h-[92px] flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant="outline" className="shrink-0">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <Badge variant="outline" className="w-fit shrink-0 px-2 py-0.5 text-xs">
                           OK
                         </Badge>
-                        <p className="text-sm font-semibold tabular-nums text-foreground">21+ units</p>
+                        <p className="text-sm font-semibold tabular-nums text-foreground whitespace-nowrap">
+                          21+ units
+                        </p>
                       </div>
                       <p className="text-xs leading-relaxed text-muted-foreground">
                         Healthy stock level.
