@@ -29,7 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, X } from "lucide-react";
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { ReportDataTable } from "@/components/report/ReportDataTable";
 import { formatCurrency } from "@/lib/format";
@@ -700,12 +700,11 @@ export default function ManagerView() {
                       className="h-10 w-full rounded-xl border bg-background px-3 text-sm"
                       placeholder="Search medicines..."
                       value={medicineSearch}
-                      onChange={(e) => setMedicineSearch(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          setMedicinePage(1);
-                          void loadMedicinesPage({ page: 1, search: medicineSearch });
-                        }
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setMedicineSearch(next);
+                        setMedicinePage(1);
+                        void loadMedicinesPage({ page: 1, search: next, createdDate: medicineCreatedDate });
                       }}
                     />
                   </div>
@@ -714,7 +713,29 @@ export default function ManagerView() {
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button type="button" variant="outline" className="h-10 rounded-xl">
-                          {medicineCreatedDate ? format(parseISO(medicineCreatedDate), "PPP") : "Filter by day"}
+                          <span className="inline-flex items-center gap-2">
+                            {medicineCreatedDate
+                              ? format(parseISO(medicineCreatedDate), "PPP")
+                              : "Filter by day"}
+                            {medicineCreatedDate ? (
+                              <button
+                                type="button"
+                                aria-label="Clear day filter"
+                                className="inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setMedicineCreatedDate("");
+                                  setMedicinePage(1);
+                                  void loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: "" });
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </span>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="end">
@@ -722,39 +743,21 @@ export default function ManagerView() {
                           mode="single"
                           selected={medicineCreatedDate ? parseISO(medicineCreatedDate) : undefined}
                           onSelect={(date) => {
-                            if (!date) return;
+                            if (!date) {
+                              setMedicineCreatedDate("");
+                              setMedicinePage(1);
+                              void loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: "" });
+                              return;
+                            }
                             const next = format(date, "yyyy-MM-dd");
                             setMedicineCreatedDate(next);
                             setMedicinePage(1);
-                            void loadMedicinesPage({ page: 1, createdDate: next });
+                            void loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: next });
                           }}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="h-10 rounded-xl"
-                      onClick={() => {
-                        setMedicineSearch("");
-                        setMedicineCreatedDate("");
-                        setMedicinePage(1);
-                        void loadMedicinesPage({ page: 1, search: "", createdDate: "" });
-                      }}
-                    >
-                      Clear
-                    </Button>
-                    <Button
-                      type="button"
-                      className="h-10 rounded-xl"
-                      onClick={() => {
-                        setMedicinePage(1);
-                        void loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: medicineCreatedDate });
-                      }}
-                    >
-                      Apply
-                    </Button>
                   </div>
                 </div>
 
