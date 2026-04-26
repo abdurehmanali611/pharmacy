@@ -14,6 +14,10 @@ import { purchase } from "@/lib/validations";
 import type { MedicineData, PurchaseData } from "@/lib/actions";
 import type { z } from "zod";
 import type { ColumnDef } from "@tanstack/react-table";
+import { format, parseISO } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const purchaseColumns: ColumnDef<PurchaseData>[] = [
   {
@@ -51,6 +55,7 @@ export default function PharmacistView() {
   const [logo, setLogo] = useState("");
   const [medicines, setMedicines] = useState<MedicineData[]>([]);
   const [sales, setSales] = useState<PurchaseData[]>([]);
+  const [salesDay, setSalesDay] = useState(() => new Date().toISOString().slice(0, 10)); // yyyy-mm-dd
   const [loading, setLoading] = useState(false);
   const [salesLoading, setSalesLoading] = useState(false);
 
@@ -73,12 +78,20 @@ export default function PharmacistView() {
   const insufficientStock =
     Boolean(selectedMedicineName) && requestedQuantity > 0 && requestedQuantity > availableStock;
 
+  const filteredSales = useMemo(() => {
+    return sales.filter((item) => {
+      const date = new Date(item.created_at);
+      if (Number.isNaN(date.getTime())) return false;
+      return date.toISOString().slice(0, 10) === salesDay;
+    });
+  }, [sales, salesDay]);
+
   const summary = useMemo(() => {
-    const totalSales = sales.reduce((sum, item) => sum + Number(item.total_price), 0);
-    const totalItems = sales.reduce((sum, item) => sum + item.quantity, 0);
-    const averageSale = sales.length ? totalSales / sales.length : 0;
+    const totalSales = filteredSales.reduce((sum, item) => sum + Number(item.total_price), 0);
+    const totalItems = filteredSales.reduce((sum, item) => sum + item.quantity, 0);
+    const averageSale = filteredSales.length ? totalSales / filteredSales.length : 0;
     return { totalSales, totalItems, averageSale };
-  }, [sales]);
+  }, [filteredSales]);
 
   const loadData = async () => {
     setSalesLoading(true);
@@ -210,9 +223,39 @@ export default function PharmacistView() {
           <Card className="rounded-3xl p-6">
             <CardHeader>
               <CardTitle>Sales summary</CardTitle>
-              <CardDescription>Live totals for today&apos;s sales work.</CardDescription>
+              <CardDescription>
+                Showing totals for{" "}
+                <span className="font-medium text-foreground">
+                  {salesDay ? format(parseISO(salesDay), "PPP") : "today"}
+                </span>
+                .
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">
+                  Select a day to review your sales.
+                </p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="gap-2">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      {salesDay ? format(parseISO(salesDay), "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={salesDay ? parseISO(salesDay) : undefined}
+                      onSelect={(date) => {
+                        if (!date) return;
+                        setSalesDay(format(date, "yyyy-MM-dd"));
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
               <div className="min-w-0 rounded-3xl border border-white/10 bg-muted p-4">
                 <p className="text-xs font-medium tracking-wide text-muted-foreground">TOTAL REVENUE</p>
                 <p className="mt-2 truncate text-xl font-semibold tabular-nums md:text-2xl">
@@ -241,7 +284,10 @@ export default function PharmacistView() {
       <Card className="rounded-3xl p-6">
         <CardHeader>
           <CardTitle>Recent sales</CardTitle>
-          <CardDescription>Latest registered transactions appear below.</CardDescription>
+          <CardDescription>
+            Showing sales for{" "}
+            <span className="font-medium text-foreground">{format(parseISO(salesDay), "PPP")}</span>.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {salesLoading ? (
@@ -249,7 +295,7 @@ export default function PharmacistView() {
               Loading sales…
             </div>
           ) : (
-            <ReportDataTable columns={purchaseColumns} data={sales} searchColumnId="medicine_name" />
+            <ReportDataTable columns={purchaseColumns} data={filteredSales} searchColumnId="medicine_name" />
           )}
         </CardContent>
       </Card>
