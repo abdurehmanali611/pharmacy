@@ -156,10 +156,12 @@ export default function PharmacistView() {
                 fieldType={formFieldTypes.SELECT}
                 label="Medicine"
                 placeholder="Select medicine"
-                options={medicines.map((medicine) => ({
-                  label: `${medicine.name} - ${formatCurrency(medicine.price)}`,
-                  value: medicine.name,
-                }))}
+                options={medicines
+                  .filter((medicine) => Number(medicine.quantity) > 0)
+                  .map((medicine) => ({
+                    label: `${medicine.name} - ${formatCurrency(medicine.price)}`,
+                    value: medicine.name,
+                  }))}
               />
               <div className="grid gap-4 md:grid-cols-2">
                 <CustomFormField
@@ -186,6 +188,11 @@ export default function PharmacistView() {
               {selectedMedicine ? (
                 <p className="text-sm text-muted-foreground">
                   Stock available: <span className={insufficientStock ? "text-destructive" : "text-foreground"}>{availableStock}</span>
+                </p>
+              ) : null}
+              {selectedMedicineName && !selectedMedicine ? (
+                <p className="text-sm text-destructive">
+                  This medicine is out of stock. Ask the manager to update the quantity.
                 </p>
               ) : null}
               <Button

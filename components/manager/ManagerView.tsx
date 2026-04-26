@@ -41,6 +41,7 @@ import {
   EditMedicine,
   EditUser,
   fetchMedicine,
+  fetchMedicinePage,
   fetchPurchase,
   fetchUser,
   ChangePassword,
@@ -120,6 +121,10 @@ export default function ManagerView() {
   const [pharmacyTin, setPharmacyTin] = useState("");
   const [selected, setSelected] = useState<"Report" | "medicines" | "credentials">("Report");
   const [medicines, setMedicines] = useState<MedicineData[]>([]);
+  const [medicineCount, setMedicineCount] = useState(0);
+  const [medicinePage, setMedicinePage] = useState(1);
+  const [medicineSearch, setMedicineSearch] = useState("");
+  const [medicineCreatedDate, setMedicineCreatedDate] = useState<string>("");
   const [purchases, setPurchases] = useState<PurchaseData[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
   const [medicineToEdit, setMedicineToEdit] = useState<MedicineData | null>(null);
@@ -217,11 +222,28 @@ export default function ManagerView() {
     };
   }, [filteredPurchases]);
 
+  const loadMedicinesPage = async (opts?: { page?: number; search?: string; createdDate?: string }) => {
+    const page = opts?.page ?? medicinePage;
+    const search = opts?.search ?? medicineSearch;
+    const createdDate = opts?.createdDate ?? medicineCreatedDate;
+
+    const response = await fetchMedicinePage({
+      page,
+      pageSize: 10,
+      search: search || undefined,
+      createdDate: createdDate || undefined,
+      ordering: "-created_at",
+    });
+    setMedicines(response?.results ?? []);
+    setMedicineCount(response?.count ?? 0);
+  };
+
   const loadAll = async () => {
-    const [medicineData, purchaseData, userData] = await Promise.all([fetchMedicine(), fetchPurchase(), fetchUser()]);
-    setMedicines(medicineData ?? []);
+    const [purchaseData, userData] = await Promise.all([fetchPurchase(), fetchUser()]);
     setPurchases(purchaseData ?? []);
     setUsers(userData ?? []);
+    await loadMedicinesPage({ page: 1 });
+    setMedicinePage(1);
   };
 
   useEffect(() => {
@@ -233,6 +255,11 @@ export default function ManagerView() {
     })();
   }, []);
 
+  useEffect(() => {
+    void loadMedicinesPage({ page: medicinePage });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [medicinePage]);
+
   const handleSaveMedicine = async (data: z.infer<typeof addMedicine>) => {
     setLoading(true);
     try {
@@ -242,7 +269,7 @@ export default function ManagerView() {
       } else {
         await createMedicine(data, setLoading);
       }
-      await loadAll();
+      await loadMedicinesPage({ page: medicinePage });
       medicineForm.reset();
     } finally {
       setLoading(false);
@@ -268,7 +295,7 @@ export default function ManagerView() {
     setLoading(true);
     try {
       await deleteMedicine(Number(id), setLoading);
-      await loadAll();
+      await loadMedicinesPage({ page: medicinePage });
     } finally {
       setLoading(false);
     }
@@ -663,9 +690,74 @@ export default function ManagerView() {
             <Card className="rounded-3xl p-6">
               <CardHeader>
                 <CardTitle>Medicine Inventory</CardTitle>
-                <CardDescription>Review stock, price, and cost for every item.</CardDescription>
+                <CardDescription>Search, filter by registration day, and review stock.</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Search</label>
+                    <input
+                      className="h-10 w-full rounded-xl border bg-background px-3 text-sm"
+                      placeholder="Search medicines..."
+                      value={medicineSearch}
+                      onChange={(e) => setMedicineSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          setMedicinePage(1);
+                          void loadMedicinesPage({ page: 1, search: medicineSearch });
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" className="h-10 rounded-xl">
+                          {medicineCreatedDate ? format(parseISO(medicineCreatedDate), "PPP") : "Filter by day"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={medicineCreatedDate ? parseISO(medicineCreatedDate) : undefined}
+                          onSelect={(date) => {
+                            if (!date) return;
+                            const next = format(date, "yyyy-MM-dd");
+                            setMedicineCreatedDate(next);
+                            setMedicinePage(1);
+                            void loadMedicinesPage({ page: 1, createdDate: next });
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-10 rounded-xl"
+                      onClick={() => {
+                        setMedicineSearch("");
+                        setMedicineCreatedDate("");
+                        setMedicinePage(1);
+                        void loadMedicinesPage({ page: 1, search: "", createdDate: "" });
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      type="button"
+                      className="h-10 rounded-xl"
+                      onClick={() => {
+                        setMedicinePage(1);
+                        void loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: medicineCreatedDate });
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+
                 <TooltipProvider>
                   <Table>
                   <TableHeader>
@@ -697,6 +789,14 @@ export default function ManagerView() {
                           <TableCell>
                             {(() => {
                               const qty = Number(item.quantity);
+                              if (qty === 0) {
+                                return (
+                                  <div className="inline-flex items-center gap-2">
+                                    <Badge variant="destructive">ENDED</Badge>
+                                    <span className="tabular-nums">0</span>
+                                  </div>
+                                );
+                              }
                               const level = getStockLevel(qty);
                               return (
                                 <Tooltip>
@@ -762,12 +862,44 @@ export default function ManagerView() {
                   </Table>
                 </TooltipProvider>
 
+                <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+                  <span>
+                    Showing page <span className="text-foreground font-medium">{medicinePage}</span> of{" "}
+                    <span className="text-foreground font-medium">{Math.max(1, Math.ceil(medicineCount / 10))}</span>{" "}
+                    ({medicineCount} total)
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={medicinePage <= 1}
+                      onClick={() => setMedicinePage((p) => Math.max(1, p - 1))}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={medicinePage >= Math.max(1, Math.ceil(medicineCount / 10))}
+                      onClick={() => setMedicinePage((p) => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="mt-4 grid gap-2 rounded-2xl border border-white/10 bg-muted/40 p-4 text-sm text-muted-foreground">
                   <p className="font-medium text-foreground">Stock level guide</p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                     <div className="inline-flex items-center gap-2">
                       <Badge variant="destructive">CRITICAL</Badge>
                       <span>\(\le 5\) units</span>
+                    </div>
+                    <div className="inline-flex items-center gap-2">
+                      <Badge variant="destructive">ENDED</Badge>
+                      <span>0 units</span>
                     </div>
                     <div className="inline-flex items-center gap-2">
                       <Badge variant="secondary">LOW</Badge>

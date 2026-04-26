@@ -345,6 +345,36 @@ export async function fetchMedicine() {
   }
 }
 
+type PaginatedResponse<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
+
+export async function fetchMedicinePage(params?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  createdDate?: string; // YYYY-MM-DD
+  ordering?: string;
+}): Promise<PaginatedResponse<MedicineData> | undefined> {
+  try {
+    const response = await api.get("/medicines/", {
+      params: {
+        page: params?.page,
+        page_size: params?.pageSize,
+        search: params?.search,
+        created_date: params?.createdDate,
+        ordering: params?.ordering,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to fetch medicines"));
+  }
+}
+
 export async function EditMedicine(data: updateMedicine, setLoading: (loading: boolean) => void) {
   try {
     setLoading(true);
