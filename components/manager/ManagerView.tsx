@@ -893,29 +893,47 @@ export default function ManagerView() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-2 rounded-2xl border border-white/10 bg-muted/40 p-4 text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">Stock level guide</p>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                    <div className="inline-flex items-center gap-2">
-                      <Badge variant="destructive">CRITICAL</Badge>
-                      <span>\(\le 5\) units</span>
+                <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-muted/40 p-4 text-sm">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                    <p className="font-medium text-foreground">Stock status</p>
+                    <p className="text-xs text-muted-foreground">
+                      Based on the number in the <span className="font-medium text-foreground">Qty</span> column.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-background/40 p-3">
+                      <Badge variant="destructive">Out of stock</Badge>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">0 units</p>
+                        <p className="text-xs text-muted-foreground">Cannot be sold until restocked.</p>
+                      </div>
                     </div>
-                    <div className="inline-flex items-center gap-2">
-                      <Badge variant="destructive">ENDED</Badge>
-                      <span>0 units</span>
+
+                    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-background/40 p-3">
+                      <Badge variant="destructive">Critical</Badge>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">1–5 units</p>
+                        <p className="text-xs text-muted-foreground">Restock immediately.</p>
+                      </div>
                     </div>
-                    <div className="inline-flex items-center gap-2">
-                      <Badge variant="secondary">LOW</Badge>
-                      <span>6–20 units</span>
+
+                    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-background/40 p-3">
+                      <Badge variant="secondary">Low</Badge>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">6–20 units</p>
+                        <p className="text-xs text-muted-foreground">Plan a restock soon.</p>
+                      </div>
                     </div>
-                    <div className="inline-flex items-center gap-2">
+
+                    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-background/40 p-3">
                       <Badge variant="outline">OK</Badge>
-                      <span>\(\gt 20\) units</span>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">21+ units</p>
+                        <p className="text-xs text-muted-foreground">Healthy stock level.</p>
+                      </div>
                     </div>
                   </div>
-                  <p className="text-xs">
-                    Tip: hover the badge in the Qty column to see the exact level text and available units.
-                  </p>
                 </div>
               </CardContent>
             </Card>
