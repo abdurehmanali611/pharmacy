@@ -5,6 +5,20 @@ import { toast } from "sonner";
 
 const DEFAULT_API_BASE_URL = "https://pharmacy-backend-black.vercel.app/api";
 
+type MaybePaginated<T> =
+  | T[]
+  | {
+      results?: T[];
+    }
+  | null
+  | undefined;
+
+function unwrapResults<T>(data: MaybePaginated<T>): T[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray((data as any).results)) return (data as any).results;
+  return [];
+}
+
 function getApiBaseUrl() {
   const rawUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!rawUrl) return DEFAULT_API_BASE_URL;
@@ -250,7 +264,7 @@ export async function CreateUser(data: createUser, setLoading: (loading: boolean
 export async function fetchUser() {
   try {
     const response = await api.get("/user/");
-    return response.data;
+    return unwrapResults<UserData>(response.data);
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to fetch user"));
   }
@@ -339,7 +353,7 @@ export async function createMedicine(data: addMedicine, setLoading: (loading: bo
 export async function fetchMedicine() {
   try {
     const response = await api.get("/medicines/");
-    return response.data;
+    return unwrapResults<MedicineData>(response.data);
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to fetch medicines"));
   }
@@ -417,7 +431,7 @@ export async function CreatePurchase(data: purchaseMedicine, setLoading: (loadin
 export async function fetchPurchase() {
   try {
     const response = await api.get("/purchases/");
-    return response.data;
+    return unwrapResults<PurchaseData>(response.data);
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to fetch purchases"));
   }
