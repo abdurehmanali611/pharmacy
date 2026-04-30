@@ -16,9 +16,14 @@ export const login = z.object({
 
 export const addMedicine = z.object({
     name: z.string().min(2, "Please Enter Valid medicine name"),
+    category: z.string().min(1, "Please select a category"),
     price: z.number().positive("Price must be a positive number"),
     cost: z.number().nonnegative("Cost must be a number"),
     quantity: z.number().int().positive("Quantity must be a positive integer"),
+    expiry_date: z
+      .union([z.string().min(1, "Please select expiry date"), z.date()])
+      .optional()
+      .nullable(),
     description: z.string().min(2, "Please Enter Valid description"),
     supplier_name: z.string().min(2, "Please Enter a supplier name"),
     supplier_phone: z.string().min(2, "Please Enter Valid phone number"),

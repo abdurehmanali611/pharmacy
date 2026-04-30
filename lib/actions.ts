@@ -187,9 +187,11 @@ export interface updateUser extends createUser {
 export interface MedicineData {
     id: string;
     name: string;
+    category?: string;
     price: number;
     cost: number;
     quantity: number;
+    expiry_date?: string | null;
     description: string;
     supplier_name: string;
     supplier_phone: string;
@@ -198,9 +200,11 @@ export interface MedicineData {
 
 export interface addMedicine {
     name: string;
+    category: string;
     price: number;
     cost: number;
     quantity: number;
+    expiry_date?: string | Date | null;
     description: string;
     supplier_name: string;
     supplier_phone: string;
@@ -340,7 +344,14 @@ export async function Logout() {
 export async function createMedicine(data: addMedicine, setLoading: (loading: boolean) => void) {
   try {
     setLoading(true);
-    const response = await api.post("/medicines/", data);
+    const payload = {
+      ...data,
+      expiry_date:
+        data.expiry_date instanceof Date
+          ? data.expiry_date.toISOString().slice(0, 10)
+          : (data.expiry_date ?? null),
+    };
+    const response = await api.post("/medicines/", payload);
     toast.success("Medicine added");
     return response.data;
   } catch (error: any) {
@@ -392,12 +403,39 @@ export async function fetchMedicinePage(params?: {
 export async function EditMedicine(data: updateMedicine, setLoading: (loading: boolean) => void) {
   try {
     setLoading(true);
-    const response = await api.put(`/medicines/${data.id}/`, data);
+    const payload = {
+      ...data,
+      expiry_date:
+        data.expiry_date instanceof Date
+          ? data.expiry_date.toISOString().slice(0, 10)
+          : (data.expiry_date ?? null),
+    };
+    const response = await api.put(`/medicines/${data.id}/`, payload);
     toast.success("Medicine updated");
     return response.data;
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to edit medicine"));
   }finally {
+    setLoading(false);
+  }
+}
+
+export async function importMedicinesExcel(
+  file: File,
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const form = new FormData();
+    form.append("file", file);
+    const response = await api.post("/medicines/import_excel/", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    toast.success(response.data?.detail ?? "Medicines imported");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to import medicines"));
+  } finally {
     setLoading(false);
   }
 }

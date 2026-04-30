@@ -59,7 +59,7 @@ export default function PharmacistView() {
   const [loading, setLoading] = useState(false);
   const [salesLoading, setSalesLoading] = useState(false);
 
-  const purchaseForm = useForm<z.input<typeof purchase>, any, z.output<typeof purchase>>({
+  const purchaseForm = useForm<z.input<typeof purchase>, unknown, z.output<typeof purchase>>({
     resolver: zodResolver(purchase),
     defaultValues: {
       medicine_name: "",

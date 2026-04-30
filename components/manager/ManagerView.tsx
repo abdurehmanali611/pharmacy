@@ -29,11 +29,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Calendar as CalendarIcon, X } from "lucide-react";
+import { AlertTriangle, Calendar as CalendarIcon, CalendarClock, Sparkles, X } from "lucide-react";
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { ReportDataTable } from "@/components/report/ReportDataTable";
 import { formatCurrency } from "@/lib/format";
+import { DRUG_CATEGORIES } from "@/constants";
 import {
+  importMedicinesExcel,
   createMedicine,
   CreateUser,
   deleteMedicine,
@@ -52,6 +54,7 @@ import type { MedicineData, PurchaseData, UserData } from "@/lib/actions";
 import type { z } from "zod";
 
 type StockLevel = "critical" | "low" | "ok";
+type ExpiryLevel = "expired" | "soon" | "ok" | "none";
 
 function getStockLevel(quantity: number): StockLevel {
   if (quantity <= 5) return "critical";
@@ -81,6 +84,54 @@ function getStockVariant(
       return "secondary";
     default:
       return "outline";
+  }
+}
+
+function getExpiryLevel(expiryDate?: string | null): ExpiryLevel {
+  if (!expiryDate) return "none";
+  const date = parseISO(expiryDate);
+  if (Number.isNaN(date.getTime())) return "none";
+  const today = new Date();
+  const endOfToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
+  if (date.getTime() < endOfToday.getTime()) return "expired";
+  const in30Days = new Date(endOfToday.getTime() + 30 * 24 * 60 * 60 * 1000);
+  if (date.getTime() <= in30Days.getTime()) return "soon";
+  return "ok";
+}
+
+function getExpiryBadgeVariant(
+  level: ExpiryLevel,
+): React.ComponentProps<typeof Badge>["variant"] {
+  switch (level) {
+    case "expired":
+      return "destructive";
+    case "soon":
+      return "secondary";
+    case "ok":
+      return "outline";
+    default:
+      return "ghost";
+  }
+}
+
+function getExpiryLabel(level: ExpiryLevel) {
+  switch (level) {
+    case "expired":
+      return "EXPIRED";
+    case "soon":
+      return "SOON";
+    case "ok":
+      return "OK";
+    default:
+      return "—";
   }
 }
 
@@ -130,22 +181,30 @@ export default function ManagerView() {
   const [medicineToEdit, setMedicineToEdit] = useState<MedicineData | null>(null);
   const [userToEdit, setUserToEdit] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [importingMedicines, setImportingMedicines] = useState(false);
   const [reportMode, setReportMode] = useState<"daily" | "monthly">("daily");
   const [reportDay, setReportDay] = useState(() => new Date().toISOString().slice(0, 10)); // yyyy-mm-dd
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7)); // yyyy-mm
 
-  const medicineForm = useForm<z.infer<typeof addMedicine>>({
-    resolver: zodResolver(addMedicine) as any,
-    defaultValues: {
+  const medicineFormDefaults: z.infer<typeof addMedicine> = useMemo(
+    () => ({
       name: "",
+      category: "",
       price: 0,
       cost: 0,
       quantity: 0,
+      expiry_date: null,
       description: "",
       supplier_name: "",
       supplier_phone: "",
       supplier_email: "",
-    },
+    }),
+    [],
+  );
+
+  const medicineForm = useForm<z.infer<typeof addMedicine>>({
+    resolver: zodResolver(addMedicine),
+    defaultValues: medicineFormDefaults,
   });
 
   const credentialForm = useForm<z.infer<typeof login>>({
@@ -238,6 +297,40 @@ export default function ManagerView() {
     setMedicineCount(response?.count ?? 0);
   };
 
+  const medicineCountsByCategory = useMemo(() => {
+    const labelByValue = new Map(DRUG_CATEGORIES.map((c) => [c.value, c.name] as const));
+    const counts = new Map<string, { label: string; count: number }>();
+
+    for (const item of medicines) {
+      const key = (item.category ?? "").trim() || "uncategorized";
+      const label = key === "uncategorized" ? "Uncategorized" : (labelByValue.get(key) ?? key);
+      const existing = counts.get(key) ?? { label, count: 0 };
+      existing.count += 1;
+      counts.set(key, existing);
+    }
+
+    return Array.from(counts.entries())
+      .map(([key, info]) => ({ key, ...info }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }, [medicines]);
+
+  const medicinePageStats = useMemo(() => {
+    const totalShown = medicines.length;
+    let expired = 0;
+    let expiringSoon = 0;
+    let lowStock = 0;
+
+    for (const m of medicines) {
+      const qty = Number(m.quantity);
+      if (!Number.isNaN(qty) && qty > 0 && qty <= 20) lowStock += 1;
+      const expiryLevel = getExpiryLevel(m.expiry_date ?? null);
+      if (expiryLevel === "expired") expired += 1;
+      if (expiryLevel === "soon") expiringSoon += 1;
+    }
+
+    return { totalShown, expired, expiringSoon, lowStock };
+  }, [medicines]);
+
   const loadAll = async () => {
     const [purchaseData, userData] = await Promise.all([fetchPurchase(), fetchUser()]);
     setPurchases(purchaseData ?? []);
@@ -270,24 +363,40 @@ export default function ManagerView() {
         await createMedicine(data, setLoading);
       }
       await loadMedicinesPage({ page: medicinePage });
-      medicineForm.reset();
+      medicineForm.reset(medicineFormDefaults);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleImportExcelMedicines = async (file: File) => {
+    setImportingMedicines(true);
+    try {
+      await importMedicinesExcel(file, setImportingMedicines);
+      await loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: medicineCreatedDate });
+      setMedicinePage(1);
+    } finally {
+      setImportingMedicines(false);
+    }
+  };
+
   const handleStartEditMedicine = (medicine: MedicineData) => {
     setMedicineToEdit(medicine);
-    medicineForm.reset({
+    medicineForm.reset(
+      {
       name: medicine.name,
+      category: medicine.category ?? "",
       price: medicine.price,
       cost: medicine.cost,
       quantity: medicine.quantity,
+      expiry_date: medicine.expiry_date ? parseISO(medicine.expiry_date) : null,
       description: medicine.description,
       supplier_name: medicine.supplier_name,
       supplier_phone: medicine.supplier_phone,
       supplier_email: medicine.supplier_email ?? "",
-    });
+      },
+      { keepDefaultValues: true },
+    );
     setSelected("medicines");
   };
 
@@ -603,6 +712,36 @@ export default function ManagerView() {
                 <CardDescription>Keep stock, pricing, and supplier details up to date.</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-muted/40 p-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">Import medicines</p>
+                    <p className="text-xs text-muted-foreground">
+                      Upload an Excel file (.xlsx) to add many medicines at once.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="import-medicines-excel"
+                      type="file"
+                      accept=".xlsx"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        void handleImportExcelMedicines(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={loading || importingMedicines}
+                      onClick={() => document.getElementById("import-medicines-excel")?.click()}
+                    >
+                      {importingMedicines ? "Importing..." : "Import Excel"}
+                    </Button>
+                  </div>
+                </div>
                 <form className="grid gap-4" onSubmit={medicineForm.handleSubmit(handleSaveMedicine)}>
                   <CustomFormField
                     name="name"
@@ -611,6 +750,24 @@ export default function ManagerView() {
                     label="Medicine Name"
                     placeholder="Enter medicine name"
                   />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <CustomFormField
+                      name="category"
+                      control={medicineForm.control}
+                      fieldType={formFieldTypes.SELECT}
+                      label="Category"
+                      placeholder="Select category"
+                      options={DRUG_CATEGORIES.map((c) => ({ label: c.name, value: c.value }))}
+                    />
+                    <CustomFormField
+                      name="expiry_date"
+                      control={medicineForm.control}
+                      fieldType={formFieldTypes.CALENDAR}
+                      label="Expiry date"
+                      placeholder="Pick expiry date"
+                      className="h-10 justify-between rounded-xl"
+                    />
+                  </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <CustomFormField
                       name="price"
@@ -677,7 +834,7 @@ export default function ManagerView() {
                       variant="secondary"
                       onClick={() => {
                         setMedicineToEdit(null);
-                        medicineForm.reset();
+                        medicineForm.reset(medicineFormDefaults);
                       }}
                     >
                       Cancel edit
@@ -693,6 +850,47 @@ export default function ManagerView() {
                 <CardDescription>Search, filter by registration day, and review stock.</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-5 grid gap-3 rounded-3xl border border-white/10 bg-linear-to-br from-muted/60 via-background/40 to-muted/40 p-4 shadow-soft">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-background/40">
+                        <Sparkles className="h-5 w-5 text-amber-300" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Live inventory intelligence</p>
+                        <p className="text-xs text-muted-foreground">
+                          Quick alerts based on the medicines currently shown below.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="h-7 rounded-full px-3">
+                        Showing <span className="tabular-nums">{medicinePageStats.totalShown}</span>
+                      </Badge>
+                      <Badge
+                        variant={medicinePageStats.expired ? "destructive" : "outline"}
+                        className="h-7 rounded-full px-3"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Expired <span className="tabular-nums">{medicinePageStats.expired}</span>
+                      </Badge>
+                      <Badge
+                        variant={medicinePageStats.expiringSoon ? "secondary" : "outline"}
+                        className="h-7 rounded-full px-3"
+                      >
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        Expiring 30d <span className="tabular-nums">{medicinePageStats.expiringSoon}</span>
+                      </Badge>
+                      <Badge
+                        variant={medicinePageStats.lowStock ? "secondary" : "outline"}
+                        className="h-7 rounded-full px-3"
+                      >
+                        Low stock <span className="tabular-nums">{medicinePageStats.lowStock}</span>
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Search</label>
@@ -766,9 +964,11 @@ export default function ManagerView() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Cost</TableHead>
                       <TableHead>Qty</TableHead>
+                      <TableHead>Expiry</TableHead>
                       <TableHead>Margin</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -787,6 +987,15 @@ export default function ManagerView() {
                           }
                         >
                           <TableCell>{item.name}</TableCell>
+                          <TableCell>
+                            {item.category ? (
+                              <Badge variant="secondary" className="rounded-full">
+                                {DRUG_CATEGORIES.find((c) => c.value === item.category)?.name ?? item.category}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>{formatCurrency(item.price)}</TableCell>
                           <TableCell>{formatCurrency(item.cost)}</TableCell>
                           <TableCell>
@@ -794,9 +1003,11 @@ export default function ManagerView() {
                               const qty = Number(item.quantity);
                               if (qty === 0) {
                                 return (
-                                  <div className="inline-flex items-center gap-2">
-                                    <Badge variant="destructive">ENDED</Badge>
-                                    <span className="tabular-nums">0</span>
+                                  <div className="flex flex-col gap-1">
+                                    <Badge variant="destructive" className="w-fit rounded-full">
+                                      ENDED
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground tabular-nums">0 units</span>
                                   </div>
                                 );
                               }
@@ -804,11 +1015,13 @@ export default function ManagerView() {
                               return (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="inline-flex items-center gap-2">
-                                      <Badge variant={getStockVariant(level)}>
+                                    <div className="flex flex-col gap-1">
+                                      <Badge variant={getStockVariant(level)} className="w-fit rounded-full">
                                         {getStockLabel(level)}
                                       </Badge>
-                                      <span className="tabular-nums">{qty}</span>
+                                      <span className="text-xs text-muted-foreground tabular-nums">
+                                        {qty} units
+                                      </span>
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent sideOffset={6}>
@@ -822,6 +1035,24 @@ export default function ManagerView() {
                                     <span className="opacity-80"> — {qty} units available</span>
                                   </TooltipContent>
                                 </Tooltip>
+                              );
+                            })()}
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const level = getExpiryLevel(item.expiry_date ?? null);
+                              if (level === "none") {
+                                return <span className="text-xs text-muted-foreground">—</span>;
+                              }
+                              return (
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant={getExpiryBadgeVariant(level)} className="w-fit rounded-full">
+                                    {getExpiryLabel(level)}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground tabular-nums">
+                                    {item.expiry_date ? format(parseISO(item.expiry_date), "PPP") : "—"}
+                                  </span>
+                                </div>
                               );
                             })()}
                           </TableCell>
@@ -856,7 +1087,7 @@ export default function ManagerView() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground">
                           No medicines added yet.
                         </TableCell>
                       </TableRow>
@@ -864,6 +1095,27 @@ export default function ManagerView() {
                   </TableBody>
                   </Table>
                 </TooltipProvider>
+
+                <div className="mt-4 rounded-2xl border border-white/10 bg-muted/40 p-4">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                    <p className="text-sm font-medium text-foreground">Found by category (this page)</p>
+                    <p className="text-xs text-muted-foreground">
+                      Counts are based on the medicines currently shown in the table.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {medicineCountsByCategory.length ? (
+                      medicineCountsByCategory.map((item) => (
+                        <Badge key={item.key} variant="secondary" className="gap-2">
+                          <span>{item.label}</span>
+                          <span className="tabular-nums text-muted-foreground">{item.count}</span>
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No medicines to summarize.</span>
+                    )}
+                  </div>
+                </div>
 
                 <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
                   <span>
