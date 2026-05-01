@@ -1,190 +1,84 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { parseISO } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ColumnDef } from "@tanstack/react-table";
-import { format, parseISO } from "date-fns";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { AlertTriangle, Calendar as CalendarIcon, CalendarClock, Sparkles, X } from "lucide-react";
-import CustomFormField, { formFieldTypes } from "@/components/customFormField";
-import { ReportDataTable } from "@/components/report/ReportDataTable";
-import { formatCurrency } from "@/lib/format";
-import { DRUG_CATEGORIES } from "@/constants";
-import {
-  importMedicinesExcel,
-  createMedicine,
-  CreateUser,
-  deleteMedicine,
-  deleteUser,
-  EditMedicine,
-  EditUser,
-  fetchMedicine,
-  fetchMedicinePage,
-  fetchPurchase,
-  fetchUser,
-  ChangePassword,
-  Logout,
-} from "@/lib/actions";
-import { addMedicine, changePasswordWithConfirm, login } from "@/lib/validations";
-import type { MedicineData, PurchaseData, UserData } from "@/lib/actions";
 import type { z } from "zod";
 
-type StockLevel = "critical" | "low" | "ok";
-type ExpiryLevel = "expired" | "soon" | "ok" | "none";
-
-function getStockLevel(quantity: number): StockLevel {
-  if (quantity <= 5) return "critical";
-  if (quantity <= 20) return "low";
-  return "ok";
-}
-
-function getStockLabel(level: StockLevel) {
-  // Stock urgency labels (expiry isn't tracked yet).
-  switch (level) {
-    case "critical":
-      return "CRITICAL";
-    case "low":
-      return "LOW";
-    default:
-      return "OK";
-  }
-}
-
-function getStockVariant(
-  level: StockLevel,
-): React.ComponentProps<typeof Badge>["variant"] {
-  switch (level) {
-    case "critical":
-      return "destructive";
-    case "low":
-      return "secondary";
-    default:
-      return "outline";
-  }
-}
-
-function getExpiryLevel(expiryDate?: string | null): ExpiryLevel {
-  if (!expiryDate) return "none";
-  const date = parseISO(expiryDate);
-  if (Number.isNaN(date.getTime())) return "none";
-  const today = new Date();
-  const endOfToday = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-    23,
-    59,
-    59,
-    999,
-  );
-  if (date.getTime() < endOfToday.getTime()) return "expired";
-  const in30Days = new Date(endOfToday.getTime() + 30 * 24 * 60 * 60 * 1000);
-  if (date.getTime() <= in30Days.getTime()) return "soon";
-  return "ok";
-}
-
-function getExpiryBadgeVariant(
-  level: ExpiryLevel,
-): React.ComponentProps<typeof Badge>["variant"] {
-  switch (level) {
-    case "expired":
-      return "destructive";
-    case "soon":
-      return "secondary";
-    case "ok":
-      return "outline";
-    default:
-      return "ghost";
-  }
-}
-
-function getExpiryLabel(level: ExpiryLevel) {
-  switch (level) {
-    case "expired":
-      return "EXPIRED";
-    case "soon":
-      return "SOON";
-    case "ok":
-      return "OK";
-    default:
-      return "—";
-  }
-}
-
-const purchaseColumns: ColumnDef<PurchaseData>[] = [
-  {
-    id: "index",
-    header: "#",
-    cell: ({ row }) => <span className="font-medium">{row.index + 1}</span>,
-  },
-  {
-    accessorKey: "medicine_name",
-    header: "Medicine",
-  },
-  {
-    accessorKey: "quantity",
-    header: "Qty",
-  },
-  {
-    accessorKey: "total_price",
-    header: "Revenue",
-    cell: ({ row }) => formatCurrency(row.original.total_price),
-  },
-  {
-    accessorKey: "profit",
-    header: "Profit",
-    cell: ({ row }) => formatCurrency(row.original.profit),
-  },
-  {
-    accessorKey: "created_at",
-    header: "Date",
-    cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString(),
-  },
-];
+import { ManagerHeader } from "@/components/manager/ManagerHeader";
+import { CashoutManagementSection } from "@/components/manager/sections/CashoutManagementSection";
+import { CredentialManagementSection } from "@/components/manager/sections/CredentialManagementSection";
+import { InvoiceManagementSection } from "@/components/manager/sections/InvoiceManagementSection";
+import { ManagerReportSection } from "@/components/manager/sections/ManagerReportSection";
+import { MedicineManagementSection } from "@/components/manager/sections/MedicineManagementSection";
+import { SupplierManagementSection } from "@/components/manager/sections/SupplierManagementSection";
+import type { ManagerSectionKey } from "@/components/manager/types";
+import {
+  ChangePassword,
+  createCashoutRecord,
+  CreateUser,
+  deleteCashoutRecord,
+  createInvoiceRecord,
+  createMedicine,
+  createSupplierRecord,
+  deleteInvoiceRecord,
+  deleteMedicine,
+  deleteSupplierRecord,
+  deleteUser,
+  editCashoutRecord,
+  editInvoiceRecord,
+  EditMedicine,
+  editSupplierRecord,
+  EditUser,
+  fetchCashouts,
+  fetchMedicine,
+  fetchInvoices,
+  fetchMedicinePage,
+  fetchPurchase,
+  fetchSuppliers,
+  fetchUser,
+  importMedicinesExcel,
+  Logout,
+  type CashoutData,
+  type InvoiceData,
+  type MedicineData,
+  type PurchaseData,
+  type SupplierData,
+  type UserData,
+} from "@/lib/actions";
+import {
+  addCashout,
+  addInvoice,
+  addMedicine,
+  addSupplier,
+  changePasswordWithConfirm,
+  login,
+} from "@/lib/validations";
 
 export default function ManagerView() {
   const [pharmacy, setPharmacy] = useState("");
   const [logo, setLogo] = useState("");
   const [pharmacyTin, setPharmacyTin] = useState("");
-  const [selected, setSelected] = useState<"Report" | "medicines" | "credentials">("Report");
+  const [selected, setSelected] = useState<ManagerSectionKey>("Report");
   const [medicines, setMedicines] = useState<MedicineData[]>([]);
-  const [medicineCount, setMedicineCount] = useState(0);
-  const [medicinePage, setMedicinePage] = useState(1);
-  const [medicineSearch, setMedicineSearch] = useState("");
-  const [medicineCreatedDate, setMedicineCreatedDate] = useState<string>("");
+  const [allMedicines, setAllMedicines] = useState<MedicineData[]>([]);
   const [purchases, setPurchases] = useState<PurchaseData[]>([]);
+  const [cashouts, setCashouts] = useState<CashoutData[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceData[]>([]);
   const [medicineToEdit, setMedicineToEdit] = useState<MedicineData | null>(null);
+  const [supplierToEdit, setSupplierToEdit] = useState<SupplierData | null>(null);
+  const [invoiceToEdit, setInvoiceToEdit] = useState<InvoiceData | null>(null);
+  const [cashoutToEdit, setCashoutToEdit] = useState<CashoutData | null>(null);
   const [userToEdit, setUserToEdit] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(false);
   const [importingMedicines, setImportingMedicines] = useState(false);
-  const [reportMode, setReportMode] = useState<"daily" | "monthly">("daily");
-  const [reportDay, setReportDay] = useState(() => new Date().toISOString().slice(0, 10)); // yyyy-mm-dd
-  const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7)); // yyyy-mm
+  const [medicineCount, setMedicineCount] = useState(0);
+  const [medicinePage, setMedicinePage] = useState(1);
+  const [medicineSearch, setMedicineSearch] = useState("");
+  const [medicineCreatedDate, setMedicineCreatedDate] = useState("");
 
   const medicineFormDefaults: z.infer<typeof addMedicine> = useMemo(
     () => ({
@@ -192,9 +86,17 @@ export default function ManagerView() {
       category: "",
       price: 0,
       cost: 0,
-      quantity: 0,
+      quantity: 1,
+      batch_number: "",
       expiry_date: null,
       description: "",
+      supplier_id: "",
+    }),
+    [],
+  );
+
+  const supplierFormDefaults: z.infer<typeof addSupplier> = useMemo(
+    () => ({
       supplier_name: "",
       supplier_phone: "",
       supplier_email: "",
@@ -202,9 +104,41 @@ export default function ManagerView() {
     [],
   );
 
+  const invoiceFormDefaults: z.infer<typeof addInvoice> = useMemo(
+    () => ({
+      supplier_id: "",
+      invoice_number: "",
+      invoice_date: new Date(),
+      invoice_amount: 0,
+      invoice_status: "unpaid",
+      invoice_type: "purchase",
+      invoice_payment_method: "Cash",
+      invoice_image: "",
+    }),
+    [],
+  );
+
   const medicineForm = useForm<z.infer<typeof addMedicine>>({
     resolver: zodResolver(addMedicine),
     defaultValues: medicineFormDefaults,
+  });
+
+  const supplierForm = useForm<z.infer<typeof addSupplier>>({
+    resolver: zodResolver(addSupplier),
+    defaultValues: supplierFormDefaults,
+  });
+
+  const invoiceForm = useForm<z.infer<typeof addInvoice>>({
+    resolver: zodResolver(addInvoice),
+    defaultValues: invoiceFormDefaults,
+  });
+
+  const cashoutForm = useForm<z.infer<typeof addCashout>>({
+    resolver: zodResolver(addCashout),
+    defaultValues: {
+      amount: 0,
+      reason: "",
+    },
   });
 
   const credentialForm = useForm<z.infer<typeof login>>({
@@ -226,62 +160,11 @@ export default function ManagerView() {
 
   const pharmacists = users.filter((user) => user.role.toLowerCase() === "pharmacist");
 
-  useEffect(() => {
-    if (selected !== "credentials") {
-      return;
-    }
-
-    // Single-pharmacist UX: if one exists, default to updating it (unless manager explicitly clicked Edit).
-    if (!userToEdit && pharmacists.length === 1) {
-      const existing = pharmacists[0];
-      setUserToEdit(existing);
-      credentialForm.reset({ username: existing.username, password: "" });
-    }
-  }, [selected, pharmacists, userToEdit, credentialForm]);
-
-  const filteredPurchases = useMemo(() => {
-    return purchases.filter((item) => {
-      const date = new Date(item.created_at);
-      if (Number.isNaN(date.getTime())) {
-        return false;
-      }
-
-      if (reportMode === "daily") {
-        const key = date.toISOString().slice(0, 10);
-        return key === reportDay;
-      }
-
-      const key = date.toISOString().slice(0, 7);
-      return key === reportMonth;
-    });
-  }, [purchases, reportDay, reportMonth, reportMode]);
-
-  const report = useMemo(() => {
-    const totalSales = filteredPurchases.reduce((sum, item) => sum + Number(item.total_price), 0);
-    const totalQuantity = filteredPurchases.reduce((sum, item) => sum + item.quantity, 0);
-    const totalProfit = filteredPurchases.reduce((sum, item) => sum + Number(item.profit), 0);
-    const byMedicine = filteredPurchases.reduce<Record<string, { quantity: number; revenue: number; profit: number }>>((acc, item) => {
-      const existing = acc[item.medicine_name] ?? { quantity: 0, revenue: 0, profit: 0 };
-      acc[item.medicine_name] = {
-        quantity: existing.quantity + item.quantity,
-        revenue: existing.revenue + Number(item.total_price),
-        profit: existing.profit + Number(item.profit),
-      };
-      return acc;
-    }, {});
-
-    return {
-      totalSales,
-      totalQuantity,
-      totalProfit,
-      byMedicine: Object.entries(byMedicine).map(([medicine_name, stats]) => ({
-        medicine_name,
-        ...stats,
-      })),
-    };
-  }, [filteredPurchases]);
-
-  const loadMedicinesPage = async (opts?: { page?: number; search?: string; createdDate?: string }) => {
+  const loadMedicinesPage = async (opts?: {
+    page?: number;
+    search?: string;
+    createdDate?: string;
+  }) => {
     const page = opts?.page ?? medicinePage;
     const search = opts?.search ?? medicineSearch;
     const createdDate = opts?.createdDate ?? medicineCreatedDate;
@@ -293,48 +176,27 @@ export default function ManagerView() {
       createdDate: createdDate || undefined,
       ordering: "-created_at",
     });
+
     setMedicines(response?.results ?? []);
     setMedicineCount(response?.count ?? 0);
   };
 
-  const medicineCountsByCategory = useMemo(() => {
-    const labelByValue = new Map(DRUG_CATEGORIES.map((c) => [c.value, c.name] as const));
-    const counts = new Map<string, { label: string; count: number }>();
-
-    for (const item of medicines) {
-      const key = (item.category ?? "").trim() || "uncategorized";
-      const label = key === "uncategorized" ? "Uncategorized" : (labelByValue.get(key) ?? key);
-      const existing = counts.get(key) ?? { label, count: 0 };
-      existing.count += 1;
-      counts.set(key, existing);
-    }
-
-    return Array.from(counts.entries())
-      .map(([key, info]) => ({ key, ...info }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-  }, [medicines]);
-
-  const medicinePageStats = useMemo(() => {
-    const totalShown = medicines.length;
-    let expired = 0;
-    let expiringSoon = 0;
-    let lowStock = 0;
-
-    for (const m of medicines) {
-      const qty = Number(m.quantity);
-      if (!Number.isNaN(qty) && qty > 0 && qty <= 20) lowStock += 1;
-      const expiryLevel = getExpiryLevel(m.expiry_date ?? null);
-      if (expiryLevel === "expired") expired += 1;
-      if (expiryLevel === "soon") expiringSoon += 1;
-    }
-
-    return { totalShown, expired, expiringSoon, lowStock };
-  }, [medicines]);
-
   const loadAll = async () => {
-    const [purchaseData, userData] = await Promise.all([fetchPurchase(), fetchUser()]);
+    const [purchaseData, cashoutData, userData, supplierData, invoiceData, medicineData] = await Promise.all([
+      fetchPurchase(),
+      fetchCashouts(),
+      fetchUser(),
+      fetchSuppliers(),
+      fetchInvoices(),
+      fetchMedicine(),
+    ]);
+
     setPurchases(purchaseData ?? []);
+    setCashouts(cashoutData ?? []);
     setUsers(userData ?? []);
+    setSuppliers(supplierData ?? []);
+    setInvoices(invoiceData ?? []);
+    setAllMedicines(medicineData ?? []);
     await loadMedicinesPage({ page: 1 });
     setMedicinePage(1);
   };
@@ -343,15 +205,23 @@ export default function ManagerView() {
     setPharmacy(localStorage.getItem("Pharmacy") ?? "");
     setLogo(localStorage.getItem("Logo") ?? "");
     setPharmacyTin(localStorage.getItem("PharmacyTin") ?? "");
-    void (async () => {
-      await loadAll();
-    })();
+    void loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     void loadMedicinesPage({ page: medicinePage });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [medicinePage]);
+
+  useEffect(() => {
+    if (selected !== "credentials") return;
+    if (!userToEdit && pharmacists.length === 1) {
+      const existing = pharmacists[0];
+      setUserToEdit(existing);
+      credentialForm.reset({ username: existing.username, password: "" });
+    }
+  }, [credentialForm, pharmacists, selected, userToEdit]);
 
   const handleSaveMedicine = async (data: z.infer<typeof addMedicine>) => {
     setLoading(true);
@@ -363,7 +233,40 @@ export default function ManagerView() {
         await createMedicine(data, setLoading);
       }
       await loadMedicinesPage({ page: medicinePage });
+      await Promise.all([
+        fetchMedicine().then((result) => setAllMedicines(result ?? [])),
+        fetchSuppliers().then((result) => setSuppliers(result ?? [])),
+        fetchInvoices().then((result) => setInvoices(result ?? [])),
+      ]);
       medicineForm.reset(medicineFormDefaults);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditMedicine = (medicine: MedicineData) => {
+    setMedicineToEdit(medicine);
+    medicineForm.reset({
+      name: medicine.name,
+      category: medicine.category ?? "",
+      price: Number(medicine.price),
+      cost: Number(medicine.cost),
+      quantity: Number(medicine.quantity),
+      batch_number: medicine.batch_number ?? "",
+      expiry_date: medicine.expiry_date ? parseISO(medicine.expiry_date) : null,
+      description: medicine.description,
+      supplier_id: medicine.selected_supplier_id ? String(medicine.selected_supplier_id) : "",
+    });
+    setSelected("medicines");
+  };
+
+  const handleDeleteMedicine = async (id: string) => {
+    setLoading(true);
+    try {
+      await deleteMedicine(Number(id), setLoading);
+      await loadMedicinesPage({ page: medicinePage });
+      const medicineData = await fetchMedicine();
+      setAllMedicines(medicineData ?? []);
     } finally {
       setLoading(false);
     }
@@ -373,38 +276,84 @@ export default function ManagerView() {
     setImportingMedicines(true);
     try {
       await importMedicinesExcel(file, setImportingMedicines);
-      await loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: medicineCreatedDate });
-      setMedicinePage(1);
+      await loadAll();
     } finally {
       setImportingMedicines(false);
     }
   };
 
-  const handleStartEditMedicine = (medicine: MedicineData) => {
-    setMedicineToEdit(medicine);
-    medicineForm.reset(
-      {
-      name: medicine.name,
-      category: medicine.category ?? "",
-      price: medicine.price,
-      cost: medicine.cost,
-      quantity: medicine.quantity,
-      expiry_date: medicine.expiry_date ? parseISO(medicine.expiry_date) : null,
-      description: medicine.description,
-      supplier_name: medicine.supplier_name,
-      supplier_phone: medicine.supplier_phone,
-      supplier_email: medicine.supplier_email ?? "",
-      },
-      { keepDefaultValues: true },
-    );
-    setSelected("medicines");
-  };
-
-  const handleRemoveMedicine = async (id: string) => {
+  const handleSaveSupplier = async (data: z.infer<typeof addSupplier>) => {
     setLoading(true);
     try {
-      await deleteMedicine(Number(id), setLoading);
-      await loadMedicinesPage({ page: medicinePage });
+      if (supplierToEdit) {
+        await editSupplierRecord({ ...data, id: supplierToEdit.id }, setLoading);
+        setSupplierToEdit(null);
+      } else {
+        await createSupplierRecord(data, setLoading);
+      }
+      await loadAll();
+      supplierForm.reset(supplierFormDefaults);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditSupplier = (supplier: SupplierData) => {
+    setSupplierToEdit(supplier);
+    supplierForm.reset({
+      supplier_name: supplier.supplier_name,
+      supplier_phone: supplier.supplier_phone,
+      supplier_email: supplier.supplier_email ?? "",
+    });
+    setSelected("suppliers");
+  };
+
+  const handleDeleteSupplier = async (id: string) => {
+    setLoading(true);
+    try {
+      await deleteSupplierRecord(Number(id), setLoading);
+      await loadAll();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveInvoice = async (data: z.infer<typeof addInvoice>) => {
+    setLoading(true);
+    try {
+      if (invoiceToEdit) {
+        await editInvoiceRecord({ ...data, id: invoiceToEdit.id }, setLoading);
+        setInvoiceToEdit(null);
+      } else {
+        await createInvoiceRecord(data, setLoading);
+      }
+      await loadAll();
+      invoiceForm.reset(invoiceFormDefaults);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditInvoice = (invoice: InvoiceData) => {
+    setInvoiceToEdit(invoice);
+    invoiceForm.reset({
+      supplier_id: invoice.selected_supplier_id ? String(invoice.selected_supplier_id) : "",
+      invoice_number: invoice.invoice_number,
+      invoice_date: invoice.invoice_date ? parseISO(invoice.invoice_date) : new Date(),
+      invoice_amount: Number(invoice.invoice_amount),
+      invoice_status: invoice.invoice_status,
+      invoice_type: invoice.invoice_type,
+      invoice_payment_method: invoice.invoice_payment_method,
+      invoice_image: invoice.invoice_image ?? "",
+    });
+    setSelected("invoices");
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    setLoading(true);
+    try {
+      await deleteInvoiceRecord(Number(id), setLoading);
+      await loadAll();
     } finally {
       setLoading(false);
     }
@@ -413,20 +362,33 @@ export default function ManagerView() {
   const handleSaveCredential = async (data: z.infer<typeof login>) => {
     setLoading(true);
     try {
-      if (pharmacists.length > 0) {
-        return;
+      if (userToEdit) {
+        await EditUser(
+          {
+            id: userToEdit.id,
+            username: data.username,
+            password: data.password,
+            pharmacy_name: pharmacy,
+            role: "Pharmacist",
+            logoUrl: logo,
+            pharmacy_tin: pharmacyTin,
+          },
+          setLoading,
+        );
+        setUserToEdit(null);
+      } else {
+        await CreateUser(
+          {
+            username: data.username,
+            password: data.password,
+            pharmacy_name: pharmacy,
+            role: "Pharmacist",
+            logoUrl: logo,
+            pharmacy_tin: pharmacyTin,
+          },
+          setLoading,
+        );
       }
-      await CreateUser(
-        {
-          username: data.username,
-          password: data.password,
-          pharmacy_name: pharmacy,
-          role: "Pharmacist",
-          logoUrl: logo,
-          pharmacy_tin: pharmacyTin,
-        },
-        setLoading,
-      );
       await loadAll();
       credentialForm.reset();
     } finally {
@@ -434,39 +396,35 @@ export default function ManagerView() {
     }
   };
 
-  const handleEditCredential = (user: UserData) => {
-    setUserToEdit(user);
-    credentialForm.reset({ username: user.username, password: "" });
-    setSelected("credentials");
-  };
-
-  const handleSaveEditedUser = async (data: z.infer<typeof login>) => {
-    if (!userToEdit) {
-      return;
-    }
+  const handleSaveCashout = async (data: z.infer<typeof addCashout>) => {
     setLoading(true);
     try {
-      await EditUser(
-        {
-          id: userToEdit.id,
-          username: data.username,
-          password: data.password,
-          pharmacy_name: pharmacy,
-          role: "Pharmacist",
-          logoUrl: logo,
-          pharmacy_tin: pharmacyTin,
-        },
-        setLoading,
-      );
-      setUserToEdit(null);
-      await loadAll();
-      credentialForm.reset();
+      if (cashoutToEdit) {
+        await editCashoutRecord({ ...data, id: cashoutToEdit.id }, setLoading);
+        setCashoutToEdit(null);
+      } else {
+        await createCashoutRecord(data, setLoading);
+      }
+      const cashoutData = await fetchCashouts();
+      setCashouts(cashoutData ?? []);
+      cashoutForm.reset({ amount: 0, reason: "" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRemoveCredential = async (id: string) => {
+  const handleDeleteCashout = async (id: string) => {
+    setLoading(true);
+    try {
+      await deleteCashoutRecord(Number(id), setLoading);
+      const cashoutData = await fetchCashouts();
+      setCashouts(cashoutData ?? []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCredential = async (id: string) => {
     setLoading(true);
     try {
       await deleteUser(Number(id), setLoading);
@@ -480,7 +438,7 @@ export default function ManagerView() {
     }
   };
 
-  const handlePasswordChange = async (data: z.infer<typeof changePasswordWithConfirm>) => {
+  const handleChangePassword = async (data: z.infer<typeof changePasswordWithConfirm>) => {
     setLoading(true);
     try {
       await ChangePassword(
@@ -493,875 +451,137 @@ export default function ManagerView() {
     }
   };
 
-  const credentialActionLabel =
-    userToEdit || pharmacists.length ? "Update Pharmacist" : "Create Pharmacist";
-
   return (
-    <div className="p-4 space-y-6">
-      <div className="rounded-3xl bg-secondary p-6 shadow-lg shadow-black/10">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <Avatar>
-              <AvatarImage src={logo || "/assets/pharmacy.jpg"} alt={pharmacy || "Pharmacy"} />
-              <AvatarFallback>{pharmacy ? pharmacy[0] : "P"}</AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-3xl font-semibold">{pharmacy || "Pharmacy"}</h1>
-              <p className="text-sm text-muted-foreground">Manager dashboard with live sales, stock, and credential controls.</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-muted/40 p-1">
-              <Button
-                type="button"
-                variant={selected === "Report" ? "default" : "ghost"}
-                size="sm"
-                aria-pressed={selected === "Report"}
-                className="rounded-full px-4"
-                onClick={() => setSelected("Report")}
-              >
-                Report
-              </Button>
-              <Button
-                type="button"
-                variant={selected === "medicines" ? "default" : "ghost"}
-                size="sm"
-                aria-pressed={selected === "medicines"}
-                className="rounded-full px-4"
-                onClick={() => setSelected("medicines")}
-              >
-                Medicines
-              </Button>
-              <Button
-                type="button"
-                variant={selected === "credentials" ? "default" : "ghost"}
-                size="sm"
-                aria-pressed={selected === "credentials"}
-                className="rounded-full px-4"
-                onClick={() => setSelected("credentials")}
-              >
-                Credentials
-              </Button>
-            </div>
+    <div className="mx-auto max-w-7xl space-y-6 p-4 lg:p-6">
+      <ManagerHeader
+        pharmacy={pharmacy}
+        logo={logo}
+        selected={selected}
+        onSelect={setSelected}
+        onLogout={Logout}
+      />
 
-            <Button variant="ghost" onClick={Logout}>
-              Logout
-            </Button>
-          </div>
-        </div>
-      </div>
+      {selected === "Report" ? (
+        <ManagerReportSection
+          medicines={allMedicines}
+          purchases={purchases}
+          suppliers={suppliers}
+          invoices={invoices}
+          cashouts={cashouts}
+        />
+      ) : null}
 
-      <div className="space-y-6">
-        {selected === "Report" && (
-          <>
-            <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-              <Card className="space-y-4 p-6">
-                <CardHeader>
-                  <CardTitle>Sales Snapshot</CardTitle>
-                  <CardDescription>
-                    Monitor total revenue, units sold, and profit by item.
-                  </CardDescription>
-                </CardHeader>
-                <div className="flex flex-col gap-3 px-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-muted/40 p-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="rounded-full px-4"
-                      variant={reportMode === "daily" ? "default" : "ghost"}
-                      aria-pressed={reportMode === "daily"}
-                      onClick={() => setReportMode("daily")}
-                    >
-                      Daily
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="rounded-full px-4"
-                      variant={reportMode === "monthly" ? "default" : "ghost"}
-                      aria-pressed={reportMode === "monthly"}
-                      onClick={() => setReportMode("monthly")}
-                    >
-                      Monthly
-                    </Button>
-                  </div>
+      {selected === "medicines" ? (
+        <MedicineManagementSection
+          form={medicineForm}
+          loading={loading}
+          importing={importingMedicines}
+          medicineToEdit={medicineToEdit}
+          medicines={medicines}
+          medicineCount={medicineCount}
+          medicinePage={medicinePage}
+          medicineSearch={medicineSearch}
+          medicineCreatedDate={medicineCreatedDate}
+          suppliers={suppliers}
+          onSearchChange={(value) => {
+            setMedicineSearch(value);
+            setMedicinePage(1);
+            void loadMedicinesPage({ page: 1, search: value });
+          }}
+          onCreatedDateChange={(value) => {
+            setMedicineCreatedDate(value);
+            setMedicinePage(1);
+            void loadMedicinesPage({ page: 1, createdDate: value });
+          }}
+          onSubmit={handleSaveMedicine}
+          onCancelEdit={() => {
+            setMedicineToEdit(null);
+            medicineForm.reset(medicineFormDefaults);
+          }}
+          onDelete={handleDeleteMedicine}
+          onEdit={handleEditMedicine}
+          onImport={handleImportExcelMedicines}
+          onPageChange={setMedicinePage}
+        />
+      ) : null}
 
-                  {reportMode === "daily" ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Date</span>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-9 w-[190px] justify-between rounded-xl"
-                          >
-                            <span className={reportDay ? "text-foreground" : "text-muted-foreground"}>
-                              {reportDay ? format(parseISO(reportDay), "PPP") : "Pick a date"}
-                            </span>
-                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="end">
-                          <Calendar
-                            mode="single"
-                            selected={reportDay ? parseISO(reportDay) : undefined}
-                            onSelect={(date) => {
-                              if (!date) return;
-                              setReportDay(format(date, "yyyy-MM-dd"));
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Month</span>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-9 w-[190px] justify-between rounded-xl"
-                          >
-                            <span className={reportMonth ? "text-foreground" : "text-muted-foreground"}>
-                              {reportMonth
-                                ? format(parseISO(`${reportMonth}-01`), "MMMM yyyy")
-                                : "Pick a month"}
-                            </span>
-                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="end">
-                          <Calendar
-                            mode="single"
-                            selected={reportMonth ? parseISO(`${reportMonth}-01`) : undefined}
-                            onSelect={(date) => {
-                              if (!date) return;
-                              setReportMonth(format(date, "yyyy-MM"));
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  )}
-                </div>
-                <CardContent className="grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-3xl border border-white/10 bg-muted p-4">
-                    <p className="text-sm uppercase text-muted-foreground">Total revenue</p>
-                    <p className="mt-2 text-3xl font-semibold">{formatCurrency(report.totalSales)}</p>
-                  </div>
-                  <div className="rounded-3xl border border-white/10 bg-muted p-4">
-                    <p className="text-sm uppercase text-muted-foreground">Items sold</p>
-                    <p className="mt-2 text-3xl font-semibold">{report.totalQuantity}</p>
-                  </div>
-                  <div className="rounded-3xl border border-white/10 bg-muted p-4">
-                    <p className="text-sm uppercase text-muted-foreground">Profit</p>
-                    <p className="mt-2 text-3xl font-semibold">{formatCurrency(report.totalProfit)}</p>
-                  </div>
-                </CardContent>
-              </Card>
+      {selected === "suppliers" ? (
+        <SupplierManagementSection
+          form={supplierForm}
+          loading={loading}
+          supplierToEdit={supplierToEdit}
+          suppliers={suppliers}
+          medicines={allMedicines}
+          invoices={invoices}
+          onSubmit={handleSaveSupplier}
+          onCancelEdit={() => {
+            setSupplierToEdit(null);
+            supplierForm.reset(supplierFormDefaults);
+          }}
+          onEdit={handleEditSupplier}
+          onDelete={handleDeleteSupplier}
+        />
+      ) : null}
 
-              <Card className="space-y-4 p-6">
-                <CardHeader>
-                  <CardTitle>Top-selling items</CardTitle>
-                  <CardDescription>Revenue and profit by medicine.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {report.byMedicine.length ? (
-                    <div className="space-y-4">
-                      {report.byMedicine.map((item) => (
-                        <div key={item.medicine_name} className="flex flex-col gap-2 rounded-3xl border border-white/10 bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="font-semibold">{item.medicine_name}</p>
-                            <p className="text-sm text-muted-foreground">{item.quantity} sold</p>
-                          </div>
-                          <div className="flex items-center gap-4 text-right">
-                            <span className="text-sm">Revenue {formatCurrency(item.revenue)}</span>
-                            <span className="text-sm text-emerald-400">Profit {formatCurrency(item.profit)}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No sales recorded yet.</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+      {selected === "invoices" ? (
+        <InvoiceManagementSection
+          form={invoiceForm}
+          loading={loading}
+          invoiceToEdit={invoiceToEdit}
+          invoices={invoices}
+          suppliers={suppliers}
+          onSubmit={handleSaveInvoice}
+          onCancelEdit={() => {
+            setInvoiceToEdit(null);
+            invoiceForm.reset(invoiceFormDefaults);
+          }}
+          onEdit={handleEditInvoice}
+          onDelete={handleDeleteInvoice}
+        />
+      ) : null}
 
-            <Card className="overflow-hidden rounded-3xl bg-secondary p-6">
-              <CardHeader>
-                <CardTitle>Recent sales</CardTitle>
-                <CardDescription>Latest register entries made by staff.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ReportDataTable columns={purchaseColumns} data={filteredPurchases} searchColumnId="medicine_name" />
-              </CardContent>
-            </Card>
-          </>
-        )}
+      {selected === "credentials" ? (
+        <CredentialManagementSection
+          credentialForm={credentialForm}
+          passwordForm={passwordForm}
+          pharmacists={pharmacists}
+          loading={loading}
+          userToEdit={userToEdit}
+          onSubmitCredential={handleSaveCredential}
+          onEditUser={(user) => {
+            setUserToEdit(user);
+            credentialForm.reset({ username: user.username, password: "" });
+          }}
+          onDeleteUser={handleDeleteCredential}
+          onCancelEdit={() => {
+            setUserToEdit(null);
+            credentialForm.reset();
+          }}
+          onChangePassword={handleChangePassword}
+        />
+      ) : null}
 
-        {selected === "medicines" && (
-          <div className="grid gap-6 xl:grid-cols-2">
-            <Card className="space-y-4 rounded-3xl p-6">
-              <CardHeader>
-                <CardTitle>{medicineToEdit ? "Edit Medicine" : "Add New Medicine"}</CardTitle>
-                <CardDescription>Keep stock, pricing, and supplier details up to date.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-muted/40 p-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">Import medicines</p>
-                    <p className="text-xs text-muted-foreground">
-                      Upload an Excel file (.xlsx) to add many medicines at once.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="import-medicines-excel"
-                      type="file"
-                      accept=".xlsx"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        void handleImportExcelMedicines(file);
-                        e.target.value = "";
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={loading || importingMedicines}
-                      onClick={() => document.getElementById("import-medicines-excel")?.click()}
-                    >
-                      {importingMedicines ? "Importing..." : "Import Excel"}
-                    </Button>
-                  </div>
-                </div>
-                <form className="grid gap-4" onSubmit={medicineForm.handleSubmit(handleSaveMedicine)}>
-                  <CustomFormField
-                    name="name"
-                    control={medicineForm.control}
-                    fieldType={formFieldTypes.INPUT}
-                    label="Medicine Name"
-                    placeholder="Enter medicine name"
-                  />
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <CustomFormField
-                      name="category"
-                      control={medicineForm.control}
-                      fieldType={formFieldTypes.SELECT}
-                      label="Category"
-                      placeholder="Select category"
-                      options={DRUG_CATEGORIES.map((c) => ({ label: c.name, value: c.value }))}
-                    />
-                    <CustomFormField
-                      name="expiry_date"
-                      control={medicineForm.control}
-                      fieldType={formFieldTypes.CALENDAR}
-                      label="Expiry date"
-                      placeholder="Pick expiry date"
-                      className="h-10 justify-between rounded-xl"
-                    />
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <CustomFormField
-                      name="price"
-                      control={medicineForm.control}
-                      fieldType={formFieldTypes.INPUT}
-                      label="Sale Price"
-                      placeholder="0.00"
-                      type="number"
-                    />
-                    <CustomFormField
-                      name="cost"
-                      control={medicineForm.control}
-                      fieldType={formFieldTypes.INPUT}
-                      label="Cost Price"
-                      placeholder="0.00"
-                      type="number"
-                    />
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <CustomFormField
-                      name="quantity"
-                      control={medicineForm.control}
-                      fieldType={formFieldTypes.INPUT}
-                      label="Quantity"
-                      placeholder="0"
-                      type="number"
-                    />
-                    <CustomFormField
-                      name="supplier_name"
-                      control={medicineForm.control}
-                      fieldType={formFieldTypes.INPUT}
-                      label="Supplier Name"
-                      placeholder="Supplier name"
-                    />
-                  </div>
-                  <CustomFormField
-                    name="supplier_phone"
-                    control={medicineForm.control}
-                    fieldType={formFieldTypes.PHONE_INPUT}
-                    label="Supplier Phone"
-                    placeholder="Enter phone number"
-                  />
-                  <CustomFormField
-                    name="supplier_email"
-                    control={medicineForm.control}
-                    fieldType={formFieldTypes.INPUT}
-                    label="Supplier Email"
-                    placeholder="Optional email"
-                    type="email"
-                  />
-                  <CustomFormField
-                    name="description"
-                    control={medicineForm.control}
-                    fieldType={formFieldTypes.TEXTAREA}
-                    label="Description"
-                    placeholder="Short performance or usage note"
-                  />
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Saving..." : medicineToEdit ? "Update medicine" : "Add medicine"}
-                  </Button>
-                  {medicineToEdit ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setMedicineToEdit(null);
-                        medicineForm.reset(medicineFormDefaults);
-                      }}
-                    >
-                      Cancel edit
-                    </Button>
-                  ) : null}
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-3xl p-6">
-              <CardHeader>
-                <CardTitle>Medicine Inventory</CardTitle>
-                <CardDescription>Search, filter by registration day, and review stock.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-5 grid gap-3 rounded-3xl border border-white/10 bg-linear-to-br from-muted/60 via-background/40 to-muted/40 p-4 shadow-soft">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-background/40">
-                        <Sparkles className="h-5 w-5 text-amber-300" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Live inventory intelligence</p>
-                        <p className="text-xs text-muted-foreground">
-                          Quick alerts based on the medicines currently shown below.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="h-7 rounded-full px-3">
-                        Showing <span className="tabular-nums">{medicinePageStats.totalShown}</span>
-                      </Badge>
-                      <Badge
-                        variant={medicinePageStats.expired ? "destructive" : "outline"}
-                        className="h-7 rounded-full px-3"
-                      >
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        Expired <span className="tabular-nums">{medicinePageStats.expired}</span>
-                      </Badge>
-                      <Badge
-                        variant={medicinePageStats.expiringSoon ? "secondary" : "outline"}
-                        className="h-7 rounded-full px-3"
-                      >
-                        <CalendarClock className="h-3.5 w-3.5" />
-                        Expiring 30d <span className="tabular-nums">{medicinePageStats.expiringSoon}</span>
-                      </Badge>
-                      <Badge
-                        variant={medicinePageStats.lowStock ? "secondary" : "outline"}
-                        className="h-7 rounded-full px-3"
-                      >
-                        Low stock <span className="tabular-nums">{medicinePageStats.lowStock}</span>
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium">Search</label>
-                    <input
-                      className="h-10 w-full rounded-xl border bg-background px-3 text-sm"
-                      placeholder="Search medicines..."
-                      value={medicineSearch}
-                      onChange={(e) => {
-                        const next = e.target.value;
-                        setMedicineSearch(next);
-                        setMedicinePage(1);
-                        void loadMedicinesPage({ page: 1, search: next, createdDate: medicineCreatedDate });
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button type="button" variant="outline" className="h-10 rounded-xl">
-                          <span className="inline-flex items-center gap-2">
-                            {medicineCreatedDate
-                              ? format(parseISO(medicineCreatedDate), "PPP")
-                              : "Filter by day"}
-                            {medicineCreatedDate ? (
-                              <button
-                                type="button"
-                                aria-label="Clear day filter"
-                                className="inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted"
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  setMedicineCreatedDate("");
-                                  setMedicinePage(1);
-                                  void loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: "" });
-                                }}
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                            ) : (
-                              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="end">
-                        <Calendar
-                          mode="single"
-                          selected={medicineCreatedDate ? parseISO(medicineCreatedDate) : undefined}
-                          onSelect={(date) => {
-                            if (!date) {
-                              setMedicineCreatedDate("");
-                              setMedicinePage(1);
-                              void loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: "" });
-                              return;
-                            }
-                            const next = format(date, "yyyy-MM-dd");
-                            setMedicineCreatedDate(next);
-                            setMedicinePage(1);
-                            void loadMedicinesPage({ page: 1, search: medicineSearch, createdDate: next });
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-
-                <TooltipProvider>
-                  <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Cost</TableHead>
-                      <TableHead>Qty</TableHead>
-                      <TableHead>Expiry</TableHead>
-                      <TableHead>Margin</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {medicines.length ? (
-                      medicines.map((item) => (
-                        <TableRow
-                          key={item.id}
-                          className={
-                            getStockLevel(Number(item.quantity)) === "critical"
-                              ? "hover:bg-destructive/10"
-                              : getStockLevel(Number(item.quantity)) === "low"
-                                ? "hover:bg-amber-500/10"
-                                : "hover:bg-muted/50"
-                          }
-                        >
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell>
-                            {item.category ? (
-                              <Badge variant="secondary" className="rounded-full">
-                                {DRUG_CATEGORIES.find((c) => c.value === item.category)?.name ?? item.category}
-                              </Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>{formatCurrency(item.price)}</TableCell>
-                          <TableCell>{formatCurrency(item.cost)}</TableCell>
-                          <TableCell>
-                            {(() => {
-                              const qty = Number(item.quantity);
-                              if (qty === 0) {
-                                return (
-                                  <div className="flex flex-col gap-1">
-                                    <Badge variant="destructive" className="w-fit rounded-full">
-                                      ENDED
-                                    </Badge>
-                                    <span className="text-xs text-muted-foreground tabular-nums">0 units</span>
-                                  </div>
-                                );
-                              }
-                              const level = getStockLevel(qty);
-                              return (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="flex flex-col gap-1">
-                                      <Badge variant={getStockVariant(level)} className="w-fit rounded-full">
-                                        {getStockLabel(level)}
-                                      </Badge>
-                                      <span className="text-xs text-muted-foreground tabular-nums">
-                                        {qty} units
-                                      </span>
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent sideOffset={6}>
-                                    <span className="font-medium">
-                                      {level === "critical"
-                                        ? "Critical stock"
-                                        : level === "low"
-                                          ? "Low stock"
-                                          : "Stock OK"}
-                                    </span>
-                                    <span className="opacity-80"> — {qty} units available</span>
-                                  </TooltipContent>
-                                </Tooltip>
-                              );
-                            })()}
-                          </TableCell>
-                          <TableCell>
-                            {(() => {
-                              const level = getExpiryLevel(item.expiry_date ?? null);
-                              if (level === "none") {
-                                return <span className="text-xs text-muted-foreground">—</span>;
-                              }
-                              return (
-                                <div className="flex flex-col gap-1">
-                                  <Badge variant={getExpiryBadgeVariant(level)} className="w-fit rounded-full">
-                                    {getExpiryLabel(level)}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground tabular-nums">
-                                    {item.expiry_date ? format(parseISO(item.expiry_date), "PPP") : "—"}
-                                  </span>
-                                </div>
-                              );
-                            })()}
-                          </TableCell>
-                          <TableCell>{formatCurrency(item.price - item.cost)}</TableCell>
-                          <TableCell className="space-x-2">
-                            <Button size="sm" variant="outline" onClick={() => handleStartEditMedicine(item)}>
-                              Edit
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="destructive">
-                                  Delete
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete medicine?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently remove <span className="font-medium">{item.name}</span> from your inventory.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleRemoveMedicine(item.id)}>
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground">
-                          No medicines added yet.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                  </Table>
-                </TooltipProvider>
-
-                <div className="mt-4 rounded-2xl border border-white/10 bg-muted/40 p-4">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                    <p className="text-sm font-medium text-foreground">Found by category (this page)</p>
-                    <p className="text-xs text-muted-foreground">
-                      Counts are based on the medicines currently shown in the table.
-                    </p>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {medicineCountsByCategory.length ? (
-                      medicineCountsByCategory.map((item) => (
-                        <Badge key={item.key} variant="secondary" className="gap-2">
-                          <span>{item.label}</span>
-                          <span className="tabular-nums text-muted-foreground">{item.count}</span>
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-sm text-muted-foreground">No medicines to summarize.</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-                  <span>
-                    Showing page <span className="text-foreground font-medium">{medicinePage}</span> of{" "}
-                    <span className="text-foreground font-medium">{Math.max(1, Math.ceil(medicineCount / 10))}</span>{" "}
-                    ({medicineCount} total)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={medicinePage <= 1}
-                      onClick={() => setMedicinePage((p) => Math.max(1, p - 1))}
-                    >
-                      Prev
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={medicinePage >= Math.max(1, Math.ceil(medicineCount / 10))}
-                      onClick={() => setMedicinePage((p) => p + 1)}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-muted/40 p-4 text-sm">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                    <p className="font-medium text-foreground">Stock status</p>
-                    <p className="text-xs text-muted-foreground">
-                      Based on the number in the <span className="font-medium text-foreground">Qty</span> column.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex min-h-[104px] flex-col gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
-                      <Badge variant="destructive" className="w-fit px-2 py-0.5 text-xs">
-                        Out of stock
-                      </Badge>
-                      <p className="text-lg font-semibold leading-none tabular-nums text-foreground whitespace-nowrap">
-                        0 units
-                      </p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        Can’t be sold until restocked.
-                      </p>
-                    </div>
-
-                    <div className="flex min-h-[104px] flex-col gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
-                      <Badge variant="destructive" className="w-fit px-2 py-0.5 text-xs">
-                        Critical
-                      </Badge>
-                      <p className="text-lg font-semibold leading-none tabular-nums text-foreground whitespace-nowrap">
-                        1–5 units
-                      </p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        Restock now (very low).
-                      </p>
-                    </div>
-
-                    <div className="flex min-h-[104px] flex-col gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
-                      <Badge variant="secondary" className="w-fit px-2 py-0.5 text-xs">
-                        Low
-                      </Badge>
-                      <p className="text-lg font-semibold leading-none tabular-nums text-foreground whitespace-nowrap">
-                        6–20 units
-                      </p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        Plan a restock soon.
-                      </p>
-                    </div>
-
-                    <div className="flex min-h-[104px] flex-col gap-2 rounded-2xl border border-white/10 bg-background/40 p-3">
-                      <Badge variant="outline" className="w-fit px-2 py-0.5 text-xs">
-                        OK
-                      </Badge>
-                      <p className="text-lg font-semibold leading-none tabular-nums text-foreground whitespace-nowrap">
-                        21+ units
-                      </p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        Healthy stock level.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {selected === "credentials" && (
-          <div className="grid gap-6 xl:grid-cols-2">
-            <div className="space-y-6">
-              <Card className="rounded-3xl p-6">
-                <CardHeader>
-                  <CardTitle>Pharmacist Credentials</CardTitle>
-                  <CardDescription>Create or manage pharmacist users for your pharmacy.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form
-                    className="grid gap-4"
-                    onSubmit={credentialForm.handleSubmit(
-                      userToEdit || pharmacists.length ? handleSaveEditedUser : handleSaveCredential,
-                    )}
-                  >
-                    <CustomFormField
-                      name="username"
-                      control={credentialForm.control}
-                      fieldType={formFieldTypes.INPUT}
-                      label="Username"
-                      placeholder="Enter username"
-                    />
-                    <CustomFormField
-                      name="password"
-                      control={credentialForm.control}
-                      fieldType={formFieldTypes.INPUT}
-                      label="Password"
-                      placeholder={
-                        userToEdit || pharmacists.length
-                          ? "Enter new password"
-                          : "Enter password"
-                      }
-                      type="password"
-                    />
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Saving..." : credentialActionLabel}
-                    </Button>
-                    {userToEdit ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => {
-                          setUserToEdit(null);
-                          credentialForm.reset();
-                        }}
-                      >
-                        Cancel edit
-                      </Button>
-                    ) : null}
-                  </form>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-3xl p-6">
-                <CardHeader>
-                  <CardTitle>Change your password</CardTitle>
-                  <CardDescription>Update your manager login password securely.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form className="grid gap-4" onSubmit={passwordForm.handleSubmit(handlePasswordChange)}>
-                    <CustomFormField
-                      name="old_password"
-                      control={passwordForm.control}
-                      fieldType={formFieldTypes.INPUT}
-                      label="Current Password"
-                      placeholder="Enter current password"
-                      type="password"
-                    />
-                    <CustomFormField
-                      name="new_password"
-                      control={passwordForm.control}
-                      fieldType={formFieldTypes.INPUT}
-                      label="New Password"
-                      placeholder="Enter new password"
-                      type="password"
-                    />
-                    <CustomFormField
-                      name="confirm_new_password"
-                      control={passwordForm.control}
-                      fieldType={formFieldTypes.INPUT}
-                      label="Confirm Password"
-                      placeholder="Confirm new password"
-                      type="password"
-                    />
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Updating..." : "Update password"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="rounded-3xl p-6">
-              <CardHeader>
-                <CardTitle>Pharmacist roster</CardTitle>
-                <CardDescription>List of active pharmacist accounts in your pharmacy.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pharmacists.length ? (
-                      pharmacists.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>{user.username}</TableCell>
-                          <TableCell>{user.role}</TableCell>
-                          <TableCell className="space-x-2">
-                            <Button size="sm" variant="outline" onClick={() => handleEditCredential(user)}>
-                              Edit
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="destructive">
-                                  Delete
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete pharmacist account?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently remove <span className="font-medium">{user.username}</span>. You can create a new pharmacist after deletion.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleRemoveCredential(user.id)}>
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-muted-foreground">
-                          No pharmacist accounts found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
+      {selected === "cashouts" ? (
+        <CashoutManagementSection
+          form={cashoutForm}
+          loading={loading}
+          cashouts={cashouts}
+          cashoutToEdit={cashoutToEdit}
+          onSubmit={handleSaveCashout}
+          onEdit={(cashout) => {
+            setCashoutToEdit(cashout);
+            cashoutForm.reset({
+              amount: Number(cashout.amount),
+              reason: cashout.reason,
+            });
+          }}
+          onDelete={handleDeleteCashout}
+          onCancelEdit={() => {
+            setCashoutToEdit(null);
+            cashoutForm.reset({ amount: 0, reason: "" });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

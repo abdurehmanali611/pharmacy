@@ -1,23 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { format, parseISO } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useFieldArray, useForm } from "react-hook-form";
+import type { z } from "zod";
+import { Calendar as CalendarIcon } from "lucide-react";
+
+import { MedicineCatalog } from "@/components/pharmacist/MedicineCatalog";
+import { SaleCartSection } from "@/components/pharmacist/SaleCartSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import CustomFormField, { formFieldTypes } from "@/components/customFormField";
-import { ReportDataTable } from "@/components/report/ReportDataTable";
-import { fetchMedicine, fetchPurchase, CreatePurchase, Logout } from "@/lib/actions";
-import { formatCurrency } from "@/lib/format";
-import { purchase } from "@/lib/validations";
-import type { MedicineData, PurchaseData } from "@/lib/actions";
-import type { z } from "zod";
-import type { ColumnDef } from "@tanstack/react-table";
-import { format, parseISO } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ReportDataTable } from "@/components/report/ReportDataTable";
+import { CreateBulkPurchase, fetchMedicine, fetchPurchase, Logout } from "@/lib/actions";
+import { formatCurrency } from "@/lib/format";
+import { saleCart } from "@/lib/validations";
+import type { MedicineData, PurchaseData } from "@/lib/actions";
 
 const purchaseColumns: ColumnDef<PurchaseData>[] = [
   {
@@ -55,28 +57,22 @@ export default function PharmacistView() {
   const [logo, setLogo] = useState("");
   const [medicines, setMedicines] = useState<MedicineData[]>([]);
   const [sales, setSales] = useState<PurchaseData[]>([]);
-  const [salesDay, setSalesDay] = useState(() => new Date().toISOString().slice(0, 10)); // yyyy-mm-dd
+  const [salesDay, setSalesDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [loading, setLoading] = useState(false);
   const [salesLoading, setSalesLoading] = useState(false);
 
-  const purchaseForm = useForm<z.input<typeof purchase>, unknown, z.output<typeof purchase>>({
-    resolver: zodResolver(purchase),
+  const saleForm = useForm<z.input<typeof saleCart>, unknown, z.output<typeof saleCart>>({
+    resolver: zodResolver(saleCart),
     defaultValues: {
-      medicine_name: "",
-      quantity: 1,
-      price: 0,
+      items: [],
     },
   });
 
-  const selectedMedicineName = purchaseForm.watch("medicine_name");
-  const selectedMedicine = medicines.find((item) => item.name === selectedMedicineName);
-  const quantity = purchaseForm.watch("quantity");
-  const price = purchaseForm.watch("price");
-  const totalPrice = Number(quantity || 0) * Number(price || 0);
-  const availableStock = Number(selectedMedicine?.quantity ?? 0);
-  const requestedQuantity = Number(quantity ?? 0);
-  const insufficientStock =
-    Boolean(selectedMedicineName) && requestedQuantity > 0 && requestedQuantity > availableStock;
+  const { fields, append, remove, replace } = useFieldArray({
+    control: saleForm.control,
+    name: "items",
+  });
 
   const filteredSales = useMemo(() => {
     return sales.filter((item) => {
@@ -110,116 +106,89 @@ export default function PharmacistView() {
     void loadData();
   }, []);
 
-  useEffect(() => {
-    if (selectedMedicine) {
-      purchaseForm.setValue("price", Number(selectedMedicine.price), { shouldValidate: true });
-    }
-  }, [selectedMedicine, purchaseForm]);
+  const handleAddMedicineToCart = (medicine: MedicineData) => {
+    const currentItems = saleForm.getValues("items");
+    const existingIndex = currentItems.findIndex((item) => item.medicine_name === medicine.name);
 
-  const handleSubmitSale = async (data: z.output<typeof purchase>) => {
+    if (existingIndex >= 0) {
+      const nextItems = [...currentItems];
+      nextItems[existingIndex] = {
+        ...nextItems[existingIndex],
+        quantity: Number(nextItems[existingIndex].quantity) + 1,
+      };
+      replace(nextItems);
+      return;
+    }
+
+    append({
+      medicine_name: medicine.name,
+      quantity: 1,
+      price: Number(medicine.price),
+    });
+  };
+
+  const handleSubmitSale = async (data: z.infer<typeof saleCart>) => {
     setLoading(true);
     try {
-      await CreatePurchase(
+      await CreateBulkPurchase(
         {
-          medicine_name: data.medicine_name,
-          quantity: data.quantity,
-          price: data.price,
-          total_price: Number(data.quantity) * Number(data.price),
+          items: data.items.map((item) => ({
+            medicine_name: item.medicine_name,
+            quantity: Number(item.quantity),
+            price: Number(item.price),
+            total_price: Number(item.quantity) * Number(item.price),
+          })),
         },
         setLoading,
       );
       await loadData();
-      purchaseForm.reset({ medicine_name: "", quantity: 1, price: 0 });
+      saleForm.reset({ items: [] });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="rounded-3xl bg-secondary p-6 shadow-lg shadow-black/10">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 lg:p-6">
+      <div className="glass panel-glow rounded-[2rem] border border-white/10 p-6 shadow-black/30">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <Avatar>
+            <Avatar className="h-16 w-16 ring-2 ring-white/10">
               <AvatarImage src={logo || "/assets/pharmacy.jpg"} alt={pharmacy || "Pharmacy"} />
               <AvatarFallback>{pharmacy ? pharmacy[0] : "P"}</AvatarFallback>
             </Avatar>
-            <div>
-              <h1 className="text-3xl font-semibold">{pharmacy || "Pharmacy"}</h1>
-              <p className="text-sm text-muted-foreground">Pharmacist sales register and daily revenue tracking.</p>
+            <div className="space-y-2">
+              <p className="display-kicker text-amber-200">Pharmacist deck</p>
+              <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-[-0.05em] text-white">{pharmacy || "Pharmacy"}</h1>
+              <p className="max-w-2xl text-sm leading-7 text-white/62">
+                Pharmacist register with fast search, category filtering, and multi-medicine checkout.
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={Logout}>Logout</Button>
+            <Button variant="outline" className="border-white/12 bg-white/6 text-white hover:bg-white/10" onClick={Logout}>Logout</Button>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.3fr_0.85fr]">
-        <Card className="rounded-3xl p-6">
-          <CardHeader>
-            <CardTitle>Register a sale</CardTitle>
-            <CardDescription>Choose a medicine, enter quantity, and record the transaction.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="grid gap-4" onSubmit={purchaseForm.handleSubmit(handleSubmitSale)}>
-              <CustomFormField
-                name="medicine_name"
-                control={purchaseForm.control}
-                fieldType={formFieldTypes.SELECT}
-                label="Medicine"
-                placeholder="Select medicine"
-                options={medicines
-                  .filter((medicine) => Number(medicine.quantity) > 0)
-                  .map((medicine) => ({
-                    label: `${medicine.name} - ${formatCurrency(medicine.price)}`,
-                    value: medicine.name,
-                  }))}
-              />
-              <div className="grid gap-4 md:grid-cols-2">
-                <CustomFormField
-                  name="quantity"
-                  control={purchaseForm.control}
-                  fieldType={formFieldTypes.INPUT}
-                  label="Quantity"
-                  placeholder="Enter quantity"
-                  type="number"
-                />
-                <CustomFormField
-                  name="price"
-                  control={purchaseForm.control}
-                  fieldType={formFieldTypes.INPUT}
-                  label="Sale price"
-                  placeholder="0.00"
-                  type="number"
-                />
-              </div>
-              <div className="rounded-3xl border border-white/10 bg-muted p-4">
-                <p className="text-sm text-muted-foreground">Transaction total</p>
-                <p className="mt-2 text-3xl font-semibold">{formatCurrency(totalPrice)}</p>
-              </div>
-              {selectedMedicine ? (
-                <p className="text-sm text-muted-foreground">
-                  Stock available: <span className={insufficientStock ? "text-destructive" : "text-foreground"}>{availableStock}</span>
-                </p>
-              ) : null}
-              {selectedMedicineName && !selectedMedicine ? (
-                <p className="text-sm text-destructive">
-                  This medicine is out of stock. Ask the manager to update the quantity.
-                </p>
-              ) : null}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading || !selectedMedicineName || insufficientStock || availableStock <= 0}
-              >
-                {loading ? "Recording..." : "Record sale"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.95fr]">
+        <MedicineCatalog
+          medicines={medicines}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          onAddMedicine={handleAddMedicineToCart}
+        />
 
         <div className="space-y-6">
+          <SaleCartSection
+            form={saleForm}
+            fields={fields}
+            loading={loading}
+            medicines={medicines}
+            remove={remove}
+            onSubmit={handleSubmitSale}
+          />
+
           <Card className="rounded-3xl p-6">
             <CardHeader>
               <CardTitle>Sales summary</CardTitle>
@@ -227,8 +196,7 @@ export default function PharmacistView() {
                 Showing totals for{" "}
                 <span className="font-medium text-foreground">
                   {salesDay ? format(parseISO(salesDay), "PPP") : "today"}
-                </span>
-                .
+                </span>.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
@@ -268,16 +236,8 @@ export default function PharmacistView() {
                   {summary.totalItems}
                 </p>
               </div>
-              <div className="min-w-0 rounded-3xl border border-white/10 bg-muted p-4">
-                <p className="text-xs font-medium tracking-wide text-muted-foreground">AVG. SALE</p>
-                <p className="mt-2 truncate text-xl font-semibold tabular-nums md:text-2xl">
-                  {formatCurrency(summary.averageSale)}
-                </p>
-              </div>
             </CardContent>
           </Card>
-
-          {/* Password credentials are managed by the manager role. */}
         </div>
       </div>
 
@@ -292,7 +252,7 @@ export default function PharmacistView() {
         <CardContent>
           {salesLoading ? (
             <div className="rounded-2xl border border-white/10 bg-muted p-4 text-sm text-muted-foreground">
-              Loading sales…
+              Loading sales...
             </div>
           ) : (
             <ReportDataTable columns={purchaseColumns} data={filteredSales} searchColumnId="medicine_name" />

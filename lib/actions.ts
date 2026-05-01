@@ -186,19 +186,22 @@ export interface updateUser extends createUser {
 
 export interface MedicineData {
     id: string;
+    selected_supplier_id?: number | null;
     name: string;
     category?: string;
     price: number;
     cost: number;
     quantity: number;
+    batch_number: string;
     expiry_date?: string | null;
     description: string;
-    supplier_name: string;
-    supplier_phone: string;
+    supplier_phone?: string;
     supplier_email?: string;
+    supplier_name: string;
 }
 
 export interface addMedicine {
+    supplier_id: string;
     name: string;
     category: string;
     price: number;
@@ -206,9 +209,7 @@ export interface addMedicine {
     quantity: number;
     expiry_date?: string | Date | null;
     description: string;
-    supplier_name: string;
-    supplier_phone: string;
-    supplier_email?: string;
+    batch_number: string;
 }
 
 export interface updateMedicine extends addMedicine {
@@ -236,6 +237,76 @@ export interface purchaseMedicine {
 
 export interface updatePurchase extends purchaseMedicine {
     id: string;
+}
+
+export interface saleCartPayload {
+  items: purchaseMedicine[];
+}
+
+export interface SupplierData {
+  id: string;
+  supplier_name: string;
+  supplier_phone: string;
+  supplier_email: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface createSupplier {
+  supplier_name: string;
+  supplier_phone: string;
+  supplier_email?: string;
+}
+
+export interface updateSupplier extends createSupplier {
+  id: string;
+}
+
+export interface InvoiceData {
+  id: string;
+  selected_supplier_id?: number | null;
+  supplier_name?: string;
+  invoice_number: string;
+  invoice_date: string;
+  invoice_amount: number;
+  invoice_status: "paid" | "unpaid";
+  invoice_type: "purchase" | "sale";
+  invoice_payment_method: "Cash" | "Bank" | "Credit";
+  invoice_image?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashoutData {
+  id: string;
+  amount: number;
+  reason: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface createInvoice {
+  supplier_id: string;
+  invoice_number: string;
+  invoice_date: string | Date;
+  invoice_amount: number;
+  invoice_status: "paid" | "unpaid";
+  invoice_type: "purchase" | "sale";
+  invoice_payment_method: "Cash" | "Bank" | "Credit";
+  invoice_image?: string;
+}
+
+export interface updateInvoice extends createInvoice {
+  id: string;
+}
+
+export interface createCashout {
+  amount: number;
+  reason: string;
+}
+
+export interface updateCashout extends createCashout {
+  id: string;
 }
 
 export async function UserCreation(data: createUser, setLoading: (loading: boolean) => void, router: AppRouterInstance) {
@@ -267,7 +338,9 @@ export async function CreateUser(data: createUser, setLoading: (loading: boolean
 
 export async function fetchUser() {
   try {
-    const response = await api.get("/user/");
+    const response = await api.get("/user/", {
+      params: { page_size: 500 },
+    });
     return unwrapResults<UserData>(response.data);
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to fetch user"));
@@ -346,6 +419,7 @@ export async function createMedicine(data: addMedicine, setLoading: (loading: bo
     setLoading(true);
     const payload = {
       ...data,
+      supplier_id: Number(data.supplier_id),
       expiry_date:
         data.expiry_date instanceof Date
           ? data.expiry_date.toISOString().slice(0, 10)
@@ -363,7 +437,9 @@ export async function createMedicine(data: addMedicine, setLoading: (loading: bo
 
 export async function fetchMedicine() {
   try {
-    const response = await api.get("/medicines/");
+    const response = await api.get("/medicines/", {
+      params: { page_size: 500, ordering: "-created_at" },
+    });
     return unwrapResults<MedicineData>(response.data);
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to fetch medicines"));
@@ -405,6 +481,7 @@ export async function EditMedicine(data: updateMedicine, setLoading: (loading: b
     setLoading(true);
     const payload = {
       ...data,
+      supplier_id: Number(data.supplier_id),
       expiry_date:
         data.expiry_date instanceof Date
           ? data.expiry_date.toISOString().slice(0, 10)
@@ -468,7 +545,9 @@ export async function CreatePurchase(data: purchaseMedicine, setLoading: (loadin
 
 export async function fetchPurchase() {
   try {
-    const response = await api.get("/purchases/");
+    const response = await api.get("/purchases/", {
+      params: { page_size: 500 },
+    });
     return unwrapResults<PurchaseData>(response.data);
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to fetch purchases"));
@@ -510,6 +589,185 @@ export async function ChangePassword(data: {old_password: string, new_password: 
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to change password"));
   }finally {
+    setLoading(false);
+  }
+}
+
+export async function CreateBulkPurchase(data: saleCartPayload, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const response = await api.post("/purchases/bulk_create/", data);
+    toast.success(response.data?.detail ?? "Sales recorded");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to record sales"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function createSupplierRecord(data: createSupplier, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const response = await api.post("/suppliers/", data);
+    toast.success("Supplier added");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to create supplier"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function fetchSuppliers() {
+  try {
+    const response = await api.get("/suppliers/", {
+      params: { ordering: "supplier_name", page_size: 500 },
+    });
+    return unwrapResults<SupplierData>(response.data);
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to fetch suppliers"));
+  }
+}
+
+export async function editSupplierRecord(data: updateSupplier, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const response = await api.put(`/suppliers/${data.id}/`, data);
+    toast.success("Supplier updated");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to edit supplier"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function deleteSupplierRecord(id: number, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const response = await api.delete(`/suppliers/${id}/`);
+    toast.success("Supplier deleted");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to delete supplier"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function createInvoiceRecord(data: createInvoice, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const payload = {
+      ...data,
+      supplier_id: Number(data.supplier_id),
+      invoice_date:
+        data.invoice_date instanceof Date
+          ? data.invoice_date.toISOString().slice(0, 10)
+          : data.invoice_date,
+    };
+    const response = await api.post("/invoices/", payload);
+    toast.success("Invoice added");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to create invoice"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function fetchInvoices() {
+  try {
+    const response = await api.get("/invoices/", {
+      params: { page_size: 500 },
+    });
+    return unwrapResults<InvoiceData>(response.data);
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to fetch invoices"));
+  }
+}
+
+export async function editInvoiceRecord(data: updateInvoice, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const payload = {
+      ...data,
+      supplier_id: Number(data.supplier_id),
+      invoice_date:
+        data.invoice_date instanceof Date
+          ? data.invoice_date.toISOString().slice(0, 10)
+          : data.invoice_date,
+    };
+    const response = await api.put(`/invoices/${data.id}/`, payload);
+    toast.success("Invoice updated");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to edit invoice"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function deleteInvoiceRecord(id: number, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const response = await api.delete(`/invoices/${id}/`);
+    toast.success("Invoice deleted");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to delete invoice"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function createCashoutRecord(data: createCashout, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const response = await api.post("/cashouts/", data);
+    toast.success("Cashout added");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to create cashout"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function fetchCashouts() {
+  try {
+    const response = await api.get("/cashouts/", {
+      params: { page_size: 500 },
+    });
+    return unwrapResults<CashoutData>(response.data);
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to fetch cashouts"));
+  }
+}
+
+export async function editCashoutRecord(data: updateCashout, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const response = await api.put(`/cashouts/${data.id}/`, data);
+    toast.success("Cashout updated");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to edit cashout"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function deleteCashoutRecord(id: number, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const response = await api.delete(`/cashouts/${id}/`);
+    toast.success("Cashout deleted");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to delete cashout"));
+  } finally {
     setLoading(false);
   }
 }
