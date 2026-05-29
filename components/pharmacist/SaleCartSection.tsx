@@ -34,9 +34,9 @@ export function SaleCartSection({
   );
 
   return (
-    <Card className="rounded-3xl p-6">
+    <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
       <CardHeader>
-        <CardTitle>Sale cart</CardTitle>
+        <CardTitle className="font-[family-name:var(--font-display)] text-2xl">Sale cart</CardTitle>
         <CardDescription>Sell multiple medicines in one checkout and adjust quantity or price before saving.</CardDescription>
       </CardHeader>
       <CardContent>

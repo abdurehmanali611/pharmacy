@@ -37,7 +37,7 @@ export function CredentialManagementSection({
   return (
     <div className="grid gap-6 xl:grid-cols-2">
       <div className="space-y-6">
-        <Card className="rounded-3xl p-6">
+        <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
           <CardHeader>
             <CardTitle>Pharmacist credentials</CardTitle>
             <CardDescription>Create or update the pharmacist account for this pharmacy.</CardDescription>
@@ -73,7 +73,7 @@ export function CredentialManagementSection({
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl p-6">
+        <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
           <CardHeader>
             <CardTitle>Manager password</CardTitle>
             <CardDescription>Change the current manager password securely.</CardDescription>
@@ -112,7 +112,7 @@ export function CredentialManagementSection({
         </Card>
       </div>
 
-      <Card className="rounded-3xl p-6">
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
         <CardHeader>
           <CardTitle>Pharmacist roster</CardTitle>
           <CardDescription>Current pharmacist account linked to this pharmacy.</CardDescription>

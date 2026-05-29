@@ -36,7 +36,7 @@ export function InvoiceManagementSection({
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.35fr]">
-      <Card className="rounded-3xl p-6">
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
         <CardHeader>
           <CardTitle>{invoiceToEdit ? "Edit invoice" : "Add invoice"}</CardTitle>
           <CardDescription>Track supplier and sales invoices with payment status and supporting image.</CardDescription>
@@ -137,7 +137,7 @@ export function InvoiceManagementSection({
         </CardContent>
       </Card>
 
-      <Card className="rounded-3xl p-6">
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
         <CardHeader>
           <CardTitle>Invoices</CardTitle>
           <CardDescription>Add, edit, and delete invoices with supplier linkage where needed.</CardDescription>

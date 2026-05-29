@@ -90,7 +90,7 @@ export function MedicineManagementSection({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.35fr]">
-      <Card className="rounded-3xl p-6">
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
         <CardHeader>
           <CardTitle>{medicineToEdit ? "Edit medicine" : "Add medicine"}</CardTitle>
           <CardDescription>
@@ -210,7 +210,7 @@ export function MedicineManagementSection({
         </CardContent>
       </Card>
 
-      <Card className="rounded-3xl p-6">
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
         <CardHeader>
           <CardTitle>Medicine inventory</CardTitle>
           <CardDescription>

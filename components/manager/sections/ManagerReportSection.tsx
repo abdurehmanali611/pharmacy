@@ -8,6 +8,7 @@ import { DateFilterPicker } from "@/components/manager/DateFilterPicker";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReportDataTable } from "@/components/report/ReportDataTable";
 import { formatCurrency } from "@/lib/format";
 import type { CashoutData, InvoiceData, MedicineData, PurchaseData, SupplierData } from "@/lib/actions";
@@ -240,15 +241,24 @@ export function ManagerReportSection({
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-3xl p-6">
-        <CardHeader>
-          <CardTitle>Reports</CardTitle>
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle className="font-[family-name:var(--font-display)] text-2xl">Analytics hub</CardTitle>
           <CardDescription>
-            Switch between overall sales, medicine stock, supplier activity, and invoice records.
+            Drill into sales performance, stock health, supplier activity, invoices, and cashouts.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
+        <CardContent className="px-0 pb-0">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as ReportSectionKey)}
+            orientation="vertical"
+            className="flex flex-col gap-6 lg:flex-row"
+          >
+            <TabsList
+              variant="line"
+              className="h-auto w-full shrink-0 flex-col items-stretch gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-2 lg:w-56"
+            >
               {[
                 { key: "overview", label: "Overview" },
                 { key: "medicines", label: "Medicine report" },
@@ -256,121 +266,118 @@ export function ManagerReportSection({
                 { key: "invoices", label: "Invoice report" },
                 { key: "cashouts", label: "Cashout report" },
               ].map((tab) => (
-              <Button
-                key={tab.key}
-                type="button"
-                variant={activeTab === tab.key ? "default" : "outline"}
-                onClick={() => setActiveTab(tab.key as ReportSectionKey)}
-              >
-                {tab.label}
-              </Button>
-            ))}
-          </div>
-
-          {activeTab === "overview" ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  type="button"
-                  variant={reportMode === "daily" ? "default" : "outline"}
-                  onClick={() => setReportMode("daily")}
+                <TabsTrigger
+                  key={tab.key}
+                  value={tab.key}
+                  className="w-full justify-start rounded-xl px-3 py-2.5 data-active:bg-amber-500/10 data-active:text-amber-100"
                 >
-                  Daily
-                </Button>
-                <Button
-                  type="button"
-                  variant={reportMode === "monthly" ? "default" : "outline"}
-                  onClick={() => setReportMode("monthly")}
-                >
-                  Monthly
-                </Button>
-                {reportMode === "daily" ? (
-                  <DateFilterPicker
-                    value={reportDay}
-                    onChange={setReportDay}
-                    placeholder="Pick a day"
-                  />
-                ) : (
-                  <DateFilterPicker
-                    value={reportMonth}
-                    onChange={setReportMonth}
-                    placeholder="Pick a month"
-                    granularity="month"
-                  />
-                )}
-              </div>
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="rounded-3xl border p-4">
-                  <p className="text-sm text-muted-foreground">Total sales</p>
-                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(overview.totalSales)}</p>
+            <div className="min-w-0 flex-1">
+              <TabsContent value="overview" className="mt-0 space-y-4">
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    variant={reportMode === "daily" ? "default" : "outline"}
+                    className={reportMode !== "daily" ? "border-white/10 bg-white/5" : undefined}
+                    onClick={() => setReportMode("daily")}
+                  >
+                    Daily
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={reportMode === "monthly" ? "default" : "outline"}
+                    className={reportMode !== "monthly" ? "border-white/10 bg-white/5" : undefined}
+                    onClick={() => setReportMode("monthly")}
+                  >
+                    Monthly
+                  </Button>
+                  {reportMode === "daily" ? (
+                    <DateFilterPicker value={reportDay} onChange={setReportDay} placeholder="Pick a day" />
+                  ) : (
+                    <DateFilterPicker
+                      value={reportMonth}
+                      onChange={setReportMonth}
+                      placeholder="Pick a month"
+                      granularity="month"
+                    />
+                  )}
                 </div>
-                <div className="rounded-3xl border p-4">
-                  <p className="text-sm text-muted-foreground">Total profit</p>
-                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(overview.totalProfit)}</p>
-                </div>
-                <div className="rounded-3xl border p-4">
-                  <p className="text-sm text-muted-foreground">Units sold</p>
-                  <p className="mt-2 text-2xl font-semibold">{overview.totalUnits}</p>
-                </div>
-                <div className="rounded-3xl border p-4">
-                  <p className="text-sm text-muted-foreground">Cashouts</p>
-                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(overview.totalCashout)}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Net after cashout: {formatCurrency(overview.netAfterCashout)}
-                  </p>
-                </div>
-              </div>
 
-              <ReportDataTable columns={purchaseColumns} data={filteredPurchases} searchColumnId="medicine_name" />
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    { label: "Total sales", value: formatCurrency(overview.totalSales), tone: "text-amber-200" },
+                    { label: "Total profit", value: formatCurrency(overview.totalProfit), tone: "text-cyan-200" },
+                    { label: "Units sold", value: String(overview.totalUnits), tone: "text-white" },
+                    {
+                      label: "Net after cashout",
+                      value: formatCurrency(overview.netAfterCashout),
+                      tone: overview.netAfterCashout >= 0 ? "text-emerald-200" : "text-rose-200",
+                      hint: `Cashouts: ${formatCurrency(overview.totalCashout)}`,
+                    },
+                  ].map((stat) => (
+                    <div
+                      key={stat.label}
+                      className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                    >
+                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/45">{stat.label}</p>
+                      <p className={`mt-2 font-[family-name:var(--font-display)] text-2xl tracking-tight ${stat.tone}`}>
+                        {stat.value}
+                      </p>
+                      {"hint" in stat && stat.hint ? (
+                        <p className="mt-1 text-xs text-white/45">{stat.hint}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+
+                <ReportDataTable columns={purchaseColumns} data={filteredPurchases} searchColumnId="medicine_name" />
+              </TabsContent>
+
+              <TabsContent value="medicines" className="mt-0">
+                <ReportDataTable columns={medicineColumns} data={medicineReportData} searchColumnId="name" />
+              </TabsContent>
+
+              <TabsContent value="suppliers" className="mt-0">
+                <ReportDataTable columns={supplierColumns} data={supplierReportData} searchColumnId="supplier_name" />
+              </TabsContent>
+
+              <TabsContent value="invoices" className="mt-0 space-y-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  {[
+                    { label: "Total invoices", value: invoices.length },
+                    { label: "Paid invoices", value: paidInvoices.length },
+                    { label: "Unpaid invoices", value: unpaidInvoices.length },
+                  ].map((stat) => (
+                    <div key={stat.label} className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
+                      <p className="text-sm text-muted-foreground">{stat.label}</p>
+                      <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold">{stat.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <ReportDataTable columns={invoiceColumns} data={invoices} searchColumnId="invoice_number" />
+              </TabsContent>
+
+              <TabsContent value="cashouts" className="mt-0 space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-sm text-muted-foreground">Total cashout entries</p>
+                    <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold">{cashouts.length}</p>
+                  </div>
+                  <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-sm text-muted-foreground">Total cashout amount</p>
+                    <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold">
+                      {formatCurrency(cashouts.reduce((sum, item) => sum + Number(item.amount), 0))}
+                    </p>
+                  </div>
+                </div>
+                <ReportDataTable columns={cashoutColumns} data={cashouts} searchColumnId="reason" />
+              </TabsContent>
             </div>
-          ) : null}
-
-          {activeTab === "medicines" ? (
-            <ReportDataTable columns={medicineColumns} data={medicineReportData} searchColumnId="name" />
-          ) : null}
-
-          {activeTab === "suppliers" ? (
-            <ReportDataTable columns={supplierColumns} data={supplierReportData} searchColumnId="supplier_name" />
-          ) : null}
-
-          {activeTab === "invoices" ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-3xl border p-4">
-                  <p className="text-sm text-muted-foreground">Total invoices</p>
-                  <p className="mt-2 text-2xl font-semibold">{invoices.length}</p>
-                </div>
-                <div className="rounded-3xl border p-4">
-                  <p className="text-sm text-muted-foreground">Paid invoices</p>
-                  <p className="mt-2 text-2xl font-semibold">{paidInvoices.length}</p>
-                </div>
-                <div className="rounded-3xl border p-4">
-                  <p className="text-sm text-muted-foreground">Unpaid invoices</p>
-                  <p className="mt-2 text-2xl font-semibold">{unpaidInvoices.length}</p>
-                </div>
-              </div>
-              <ReportDataTable columns={invoiceColumns} data={invoices} searchColumnId="invoice_number" />
-            </div>
-          ) : null}
-
-          {activeTab === "cashouts" ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-3xl border p-4">
-                  <p className="text-sm text-muted-foreground">Total cashout entries</p>
-                  <p className="mt-2 text-2xl font-semibold">{cashouts.length}</p>
-                </div>
-                <div className="rounded-3xl border p-4">
-                  <p className="text-sm text-muted-foreground">Total cashout amount</p>
-                  <p className="mt-2 text-2xl font-semibold">
-                    {formatCurrency(cashouts.reduce((sum, item) => sum + Number(item.amount), 0))}
-                  </p>
-                </div>
-              </div>
-              <ReportDataTable columns={cashoutColumns} data={cashouts} searchColumnId="reason" />
-            </div>
-          ) : null}
+          </Tabs>
         </CardContent>
       </Card>
     </div>

@@ -34,7 +34,7 @@ export function CashoutManagementSection({
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.4fr]">
-      <Card className="rounded-3xl p-6">
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
         <CardHeader>
           <CardTitle>{cashoutToEdit ? "Edit cashout" : "Add cashout"}</CardTitle>
           <CardDescription>Record money going out with the reason so it appears in reports.</CardDescription>
@@ -70,7 +70,7 @@ export function CashoutManagementSection({
         </CardContent>
       </Card>
 
-      <Card className="rounded-3xl p-6">
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
         <CardHeader>
           <CardTitle>Cashout history</CardTitle>
           <CardDescription>Every cashout is saved per pharmacy with amount and reason.</CardDescription>

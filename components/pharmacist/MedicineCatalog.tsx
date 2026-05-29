@@ -55,9 +55,9 @@ export function MedicineCatalog({
   }, [medicines, selectedCategory]);
 
   return (
-    <Card className="rounded-3xl p-6">
+    <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
       <CardHeader>
-        <CardTitle>Medicine catalog</CardTitle>
+        <CardTitle className="font-display text-2xl">Medicine catalog</CardTitle>
         <CardDescription>
           Search quickly, filter by category, then tap a medicine to add it to the sale.
         </CardDescription>

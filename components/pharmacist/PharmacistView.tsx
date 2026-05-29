@@ -8,9 +8,10 @@ import { useFieldArray, useForm } from "react-hook-form";
 import type { z } from "zod";
 import { Calendar as CalendarIcon } from "lucide-react";
 
+import { AppShell } from "@/components/chrome/AppShell";
 import { MedicineCatalog } from "@/components/pharmacist/MedicineCatalog";
+import { getPharmacistPageMeta, PHARMACIST_NAV, type PharmacistSectionKey } from "@/components/pharmacist/navigation";
 import { SaleCartSection } from "@/components/pharmacist/SaleCartSection";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -55,6 +56,7 @@ const purchaseColumns: ColumnDef<PurchaseData>[] = [
 export default function PharmacistView() {
   const [pharmacy, setPharmacy] = useState("");
   const [logo, setLogo] = useState("");
+  const [selected, setSelected] = useState<PharmacistSectionKey>("register");
   const [medicines, setMedicines] = useState<MedicineData[]>([]);
   const [sales, setSales] = useState<PurchaseData[]>([]);
   const [salesDay, setSalesDay] = useState(() => new Date().toISOString().slice(0, 10));
@@ -148,117 +150,117 @@ export default function PharmacistView() {
     }
   };
 
+  const pageMeta = getPharmacistPageMeta(selected);
+
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 lg:p-6">
-      <div className="glass panel-glow rounded-[2rem] border border-white/10 p-6 shadow-black/30">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 ring-2 ring-white/10">
-              <AvatarImage src={logo || "/assets/pharmacy.jpg"} alt={pharmacy || "Pharmacy"} />
-              <AvatarFallback>{pharmacy ? pharmacy[0] : "P"}</AvatarFallback>
-            </Avatar>
-            <div className="space-y-2">
-              <p className="display-kicker text-amber-200">Pharmacist deck</p>
-              <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-[-0.05em] text-white">{pharmacy || "Pharmacy"}</h1>
-              <p className="max-w-2xl text-sm leading-7 text-white/62">
-                Pharmacist register with fast search, category filtering, and multi-medicine checkout.
-              </p>
-            </div>
+    <AppShell
+      pharmacy={pharmacy}
+      logo={logo}
+      roleLabel="Pharmacist"
+      navItems={PHARMACIST_NAV}
+      selected={selected}
+      onSelect={(key) => setSelected(key as PharmacistSectionKey)}
+      onLogout={Logout}
+      pageTitle={pageMeta.title}
+      pageDescription={pageMeta.description}
+    >
+      <div className="mx-auto max-w-7xl space-y-6">
+        {selected === "register" ? (
+          <div className="grid gap-6 xl:grid-cols-[1.15fr_0.95fr]">
+            <MedicineCatalog
+              medicines={medicines}
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+              onAddMedicine={handleAddMedicineToCart}
+            />
+
+            <SaleCartSection
+              form={saleForm}
+              fields={fields}
+              loading={loading}
+              medicines={medicines}
+              remove={remove}
+              onSubmit={handleSubmitSale}
+            />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="border-white/12 bg-white/6 text-white hover:bg-white/10" onClick={Logout}>Logout</Button>
-          </div>
-        </div>
-      </div>
+        ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.95fr]">
-        <MedicineCatalog
-          medicines={medicines}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          onAddMedicine={handleAddMedicineToCart}
-        />
-
-        <div className="space-y-6">
-          <SaleCartSection
-            form={saleForm}
-            fields={fields}
-            loading={loading}
-            medicines={medicines}
-            remove={remove}
-            onSubmit={handleSubmitSale}
-          />
-
-          <Card className="rounded-3xl p-6">
-            <CardHeader>
-              <CardTitle>Sales summary</CardTitle>
-              <CardDescription>
-                Showing totals for{" "}
-                <span className="font-medium text-foreground">
-                  {salesDay ? format(parseISO(salesDay), "PPP") : "today"}
-                </span>.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-muted/40 p-3">
-                <p className="text-xs text-muted-foreground">
-                  Select a day to review your sales.
-                </p>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" size="sm" className="gap-2">
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                      {salesDay ? format(parseISO(salesDay), "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={salesDay ? parseISO(salesDay) : undefined}
-                      onSelect={(date) => {
-                        if (!date) return;
-                        setSalesDay(format(date, "yyyy-MM-dd"));
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="min-w-0 rounded-3xl border border-white/10 bg-muted p-4">
-                <p className="text-xs font-medium tracking-wide text-muted-foreground">TOTAL REVENUE</p>
-                <p className="mt-2 truncate text-xl font-semibold tabular-nums md:text-2xl">
-                  {formatCurrency(summary.totalSales)}
-                </p>
-              </div>
-              <div className="min-w-0 rounded-3xl border border-white/10 bg-muted p-4">
-                <p className="text-xs font-medium tracking-wide text-muted-foreground">TOTAL ITEMS</p>
-                <p className="mt-2 truncate text-xl font-semibold tabular-nums md:text-2xl">
-                  {summary.totalItems}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <Card className="rounded-3xl p-6">
-        <CardHeader>
-          <CardTitle>Recent sales</CardTitle>
-          <CardDescription>
-            Showing sales for{" "}
-            <span className="font-medium text-foreground">{format(parseISO(salesDay), "PPP")}</span>.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {salesLoading ? (
-            <div className="rounded-2xl border border-white/10 bg-muted p-4 text-sm text-muted-foreground">
-              Loading sales...
+        {selected === "sales" ? (
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="glass panel-glow rounded-[1.75rem] border-white/10 bg-white/3">
+                <CardContent className="p-6">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">Total revenue</p>
+                  <p className="mt-3 font-display text-3xl tracking-tight text-amber-200">
+                    {formatCurrency(summary.totalSales)}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="glass panel-glow rounded-[1.75rem] border-white/10 bg-white/3">
+                <CardContent className="p-6">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">Items sold</p>
+                  <p className="mt-3 font-display text-3xl tracking-tight text-cyan-200">
+                    {summary.totalItems}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="glass panel-glow rounded-[1.75rem] border-white/10 bg-white/3">
+                <CardContent className="p-6">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">Average sale</p>
+                  <p className="mt-3 font-display text-3xl tracking-tight text-white">
+                    {formatCurrency(summary.averageSale)}
+                  </p>
+                </CardContent>
+              </Card>
             </div>
-          ) : (
-            <ReportDataTable columns={purchaseColumns} data={filteredSales} searchColumnId="medicine_name" />
-          )}
-        </CardContent>
-      </Card>
-    </div>
+
+            <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
+              <CardHeader className="px-0 pt-0">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="font-display text-2xl">Recent sales</CardTitle>
+                    <CardDescription>
+                      Showing sales for{" "}
+                      <span className="font-medium text-foreground">
+                        {salesDay ? format(parseISO(salesDay), "PPP") : "today"}
+                      </span>
+                      .
+                    </CardDescription>
+                  </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="sm" className="gap-2 border-white/10 bg-white/5">
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                        {salesDay ? format(parseISO(salesDay), "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={salesDay ? parseISO(salesDay) : undefined}
+                        onSelect={(date) => {
+                          if (!date) return;
+                          setSalesDay(format(date, "yyyy-MM-dd"));
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </CardHeader>
+              <CardContent className="px-0 pb-0">
+                {salesLoading ? (
+                  <div className="rounded-2xl border border-white/10 bg-muted/40 p-4 text-sm text-muted-foreground">
+                    Loading sales...
+                  </div>
+                ) : (
+                  <ReportDataTable columns={purchaseColumns} data={filteredSales} searchColumnId="medicine_name" />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
+      </div>
+    </AppShell>
   );
 }

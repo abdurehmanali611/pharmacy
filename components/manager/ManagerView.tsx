@@ -6,7 +6,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 
-import { ManagerHeader } from "@/components/manager/ManagerHeader";
+import { AppShell } from "@/components/chrome/AppShell";
+import { getManagerPageMeta, MANAGER_NAV } from "@/components/manager/navigation";
 import { CashoutManagementSection } from "@/components/manager/sections/CashoutManagementSection";
 import { CredentialManagementSection } from "@/components/manager/sections/CredentialManagementSection";
 import { InvoiceManagementSection } from "@/components/manager/sections/InvoiceManagementSection";
@@ -451,16 +452,21 @@ export default function ManagerView() {
     }
   };
 
-  return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 lg:p-6">
-      <ManagerHeader
-        pharmacy={pharmacy}
-        logo={logo}
-        selected={selected}
-        onSelect={setSelected}
-        onLogout={Logout}
-      />
+  const pageMeta = getManagerPageMeta(selected);
 
+  return (
+    <AppShell
+      pharmacy={pharmacy}
+      logo={logo}
+      roleLabel="Manager"
+      navItems={MANAGER_NAV}
+      selected={selected}
+      onSelect={(key) => setSelected(key as typeof selected)}
+      onLogout={Logout}
+      pageTitle={pageMeta.title}
+      pageDescription={pageMeta.description}
+    >
+      <div className="mx-auto max-w-7xl space-y-6">
       {selected === "Report" ? (
         <ManagerReportSection
           medicines={allMedicines}
@@ -582,6 +588,7 @@ export default function ManagerView() {
           }}
         />
       ) : null}
-    </div>
+      </div>
+    </AppShell>
   );
 }

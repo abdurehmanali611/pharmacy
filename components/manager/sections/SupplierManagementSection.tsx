@@ -36,7 +36,7 @@ export function SupplierManagementSection({
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.4fr]">
-      <Card className="rounded-3xl p-6">
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
         <CardHeader>
           <CardTitle>{supplierToEdit ? "Edit supplier" : "Add supplier"}</CardTitle>
           <CardDescription>Create suppliers once, then select them directly from medicine and invoice forms.</CardDescription>
@@ -79,7 +79,7 @@ export function SupplierManagementSection({
         </CardContent>
       </Card>
 
-      <Card className="rounded-3xl p-6">
+      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
         <CardHeader>
           <CardTitle>Supplier records</CardTitle>
           <CardDescription>Each supplier shows linked medicines and invoices for quick reporting.</CardDescription>
