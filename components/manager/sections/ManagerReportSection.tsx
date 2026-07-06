@@ -169,6 +169,68 @@ const purchaseColumns: ColumnDef<PurchaseData>[] = [
   },
 ];
 
+function matchesReportPeriod(
+  createdAt: string,
+  reportMode: "daily" | "monthly",
+  reportDay: string,
+  reportMonth: string,
+) {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return false;
+  return reportMode === "daily"
+    ? date.toISOString().slice(0, 10) === reportDay
+    : date.toISOString().slice(0, 7) === reportMonth;
+}
+
+function ReportPeriodFilter({
+  reportMode,
+  reportDay,
+  reportMonth,
+  onModeChange,
+  onDayChange,
+  onMonthChange,
+}: {
+  reportMode: "daily" | "monthly";
+  reportDay: string;
+  reportMonth: string;
+  onModeChange: (mode: "daily" | "monthly") => void;
+  onDayChange: (value: string) => void;
+  onMonthChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button
+        type="button"
+        size="sm"
+        variant={reportMode === "daily" ? "default" : "outline"}
+        className={cn(reportMode !== "daily" && "border-white/14 bg-white/6 text-white/75")}
+        onClick={() => onModeChange("daily")}
+      >
+        Daily
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant={reportMode === "monthly" ? "default" : "outline"}
+        className={cn(reportMode !== "monthly" && "border-white/14 bg-white/6 text-white/75")}
+        onClick={() => onModeChange("monthly")}
+      >
+        Monthly
+      </Button>
+      {reportMode === "daily" ? (
+        <DateFilterPicker value={reportDay} onChange={onDayChange} placeholder="Pick a day" />
+      ) : (
+        <DateFilterPicker
+          value={reportMonth}
+          onChange={onMonthChange}
+          placeholder="Pick a month"
+          granularity="month"
+        />
+      )}
+    </div>
+  );
+}
+
 export function ManagerReportSection({
   medicines,
   purchases,
@@ -207,22 +269,24 @@ export function ManagerReportSection({
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   const filteredPurchases = useMemo(() => {
-    return purchases.filter((item) => {
-      const date = new Date(item.created_at);
-      if (Number.isNaN(date.getTime())) return false;
-      return reportMode === "daily"
-        ? date.toISOString().slice(0, 10) === reportDay
-        : date.toISOString().slice(0, 7) === reportMonth;
-    });
+    return purchases.filter((item) =>
+      matchesReportPeriod(item.created_at, reportMode, reportDay, reportMonth),
+    );
   }, [purchases, reportDay, reportMode, reportMonth]);
+
+  const filteredCashouts = useMemo(() => {
+    return cashouts.filter((item) =>
+      matchesReportPeriod(item.created_at, reportMode, reportDay, reportMonth),
+    );
+  }, [cashouts, reportDay, reportMode, reportMonth]);
 
   const overview = useMemo(() => {
     const totalSales = filteredPurchases.reduce((sum, item) => sum + Number(item.total_price), 0);
     const totalProfit = filteredPurchases.reduce((sum, item) => sum + Number(item.profit), 0);
     const totalUnits = filteredPurchases.reduce((sum, item) => sum + Number(item.quantity), 0);
-    const totalCashout = cashouts.reduce((sum, item) => sum + Number(item.amount), 0);
+    const totalCashout = filteredCashouts.reduce((sum, item) => sum + Number(item.amount), 0);
     return { totalSales, totalProfit, totalUnits, totalCashout, netAfterCashout: totalProfit - totalCashout };
-  }, [cashouts, filteredPurchases]);
+  }, [filteredCashouts, filteredPurchases]);
 
   const supplierReportData = useMemo<SupplierReportRow[]>(() => {
     return suppliers.map((supplier) => {
@@ -286,36 +350,14 @@ export function ManagerReportSection({
             />
 
             <TabsContent value="overview" className="mt-0 space-y-5">
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={reportMode === "daily" ? "default" : "outline"}
-                  className={cn(reportMode !== "daily" && "border-white/14 bg-white/6 text-white/75")}
-                  onClick={() => setReportMode("daily")}
-                >
-                  Daily
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={reportMode === "monthly" ? "default" : "outline"}
-                  className={cn(reportMode !== "monthly" && "border-white/14 bg-white/6 text-white/75")}
-                  onClick={() => setReportMode("monthly")}
-                >
-                  Monthly
-                </Button>
-                {reportMode === "daily" ? (
-                  <DateFilterPicker value={reportDay} onChange={setReportDay} placeholder="Pick a day" />
-                ) : (
-                  <DateFilterPicker
-                    value={reportMonth}
-                    onChange={setReportMonth}
-                    placeholder="Pick a month"
-                    granularity="month"
-                  />
-                )}
-              </div>
+              <ReportPeriodFilter
+                reportMode={reportMode}
+                reportDay={reportDay}
+                reportMonth={reportMonth}
+                onModeChange={setReportMode}
+                onDayChange={setReportDay}
+                onMonthChange={setReportMonth}
+              />
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <WorkspaceStat
@@ -378,15 +420,25 @@ export function ManagerReportSection({
             </TabsContent>
 
             <TabsContent value="cashouts" className="mt-0 space-y-4">
+              <ReportPeriodFilter
+                reportMode={reportMode}
+                reportDay={reportDay}
+                reportMonth={reportMonth}
+                onModeChange={setReportMode}
+                onDayChange={setReportDay}
+                onMonthChange={setReportMonth}
+              />
               <div className="grid gap-3 sm:grid-cols-2">
-                <WorkspaceStat label="Cashout entries" value={String(cashouts.length)} />
+                <WorkspaceStat label="Cashout entries" value={String(filteredCashouts.length)} />
                 <WorkspaceStat
                   label="Total withdrawn"
-                  value={formatCurrency(cashouts.reduce((sum, item) => sum + Number(item.amount), 0))}
+                  value={formatCurrency(
+                    filteredCashouts.reduce((sum, item) => sum + Number(item.amount), 0),
+                  )}
                   tone="text-apex-orange-light"
                 />
               </div>
-              <ReportDataTable columns={cashoutColumns} data={cashouts} searchColumnId="reason" />
+              <ReportDataTable columns={cashoutColumns} data={filteredCashouts} searchColumnId="reason" />
             </TabsContent>
           </Tabs>
         </div>
