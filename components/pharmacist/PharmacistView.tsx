@@ -162,7 +162,6 @@ export default function PharmacistView() {
       onSelect={(key) => setSelected(key as PharmacistSectionKey)}
       onLogout={Logout}
       pageTitle={pageMeta.title}
-      pageDescription={pageMeta.description}
     >
       <div className="mx-auto max-w-7xl space-y-6">
         {selected === "register" ? (
@@ -191,7 +190,7 @@ export default function PharmacistView() {
               <Card className="glass panel-glow rounded-[1.75rem] border-white/10 bg-white/3">
                 <CardContent className="p-6">
                   <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">Total revenue</p>
-                  <p className="mt-3 font-display text-3xl tracking-tight text-amber-200">
+                  <p className="mt-3 font-display text-3xl tracking-tight text-apex-orange-light">
                     {formatCurrency(summary.totalSales)}
                   </p>
                 </CardContent>
@@ -199,7 +198,7 @@ export default function PharmacistView() {
               <Card className="glass panel-glow rounded-[1.75rem] border-white/10 bg-white/3">
                 <CardContent className="p-6">
                   <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">Items sold</p>
-                  <p className="mt-3 font-display text-3xl tracking-tight text-cyan-200">
+                  <p className="mt-3 font-display text-3xl tracking-tight text-white">
                     {summary.totalItems}
                   </p>
                 </CardContent>

@@ -79,8 +79,8 @@ export function MedicineCatalog({
 
         <Command className="rounded-3xl border border-white/10 bg-muted/30">
           <div className="border-b border-white/10 px-3 py-3">
-            <div className="group flex items-center gap-3 rounded-[1.35rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] px-4 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all focus-within:border-amber-300/35 focus-within:bg-white/10 focus-within:shadow-[0_0_0_3px_rgba(255,179,71,0.12)]">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-300/12 text-amber-200">
+            <div className="group flex items-center gap-3 rounded-[1.35rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] px-4 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all focus-within:border-[var(--apex-orange)]/35 focus-within:bg-white/10 focus-within:shadow-[0_0_0_3px_rgba(232,149,30,0.12)]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--apex-orange)]/12 text-[var(--apex-orange-light)]">
                 <Search className="h-4 w-4" />
               </div>
               <CommandInput

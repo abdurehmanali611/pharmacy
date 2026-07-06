@@ -3,14 +3,24 @@
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
+import { DollarSign, Package, TrendingUp, Wallet } from "lucide-react";
 
 import { DateFilterPicker } from "@/components/manager/DateFilterPicker";
+import { LinkedNamesCell } from "@/components/manager/LinkedNamesCell";
+import { ManagerAnalyticsCharts } from "@/components/manager/ManagerAnalyticsCharts";
+import { ManagerCommandStrip } from "@/components/manager/ManagerCommandStrip";
+import { ReportTabsNav } from "@/components/manager/ReportTabsNav";
+import {
+  WorkspacePanel,
+  WorkspaceSectionHeader,
+  WorkspaceStat,
+} from "@/components/manager/workspace";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { ReportDataTable } from "@/components/report/ReportDataTable";
 import { formatCurrency } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { CashoutData, InvoiceData, MedicineData, PurchaseData, SupplierData } from "@/lib/actions";
 import type { ReportSectionKey } from "@/components/manager/types";
 
@@ -31,7 +41,7 @@ type SupplierReportRow = {
   supplier_name: string;
   supplier_phone: string;
   supplier_email: string;
-  medicines: string;
+  medicine_names: string[];
   medicine_count: number;
   invoice_count: number;
   invoice_amount: number;
@@ -67,7 +77,7 @@ const medicineColumns: ColumnDef<MedicineReportRow>[] = [
     header: "Expiry",
     cell: ({ row }) => {
       const level = row.original.expiry_level;
-      if (level === "none") return <span className="text-sm text-muted-foreground">No date</span>;
+      if (level === "none") return <span className="text-sm text-white/45">No date</span>;
       return (
         <div className="space-y-1">
           <Badge
@@ -89,7 +99,17 @@ const supplierColumns: ColumnDef<SupplierReportRow>[] = [
   { accessorKey: "supplier_name", header: "Supplier" },
   { accessorKey: "supplier_phone", header: "Phone" },
   { accessorKey: "supplier_email", header: "Email" },
-  { accessorKey: "medicines", header: "Medicines" },
+  {
+    id: "medicines",
+    header: "Medicines",
+    cell: ({ row }) => (
+      <LinkedNamesCell
+        items={row.original.medicine_names}
+        itemLabel="medicine"
+        emptyLabel="No medicines yet"
+      />
+    ),
+  },
   { accessorKey: "invoice_count", header: "Invoices" },
   {
     accessorKey: "invoice_amount",
@@ -214,7 +234,7 @@ export function ManagerReportSection({
         supplier_name: supplier.supplier_name,
         supplier_phone: supplier.supplier_phone,
         supplier_email: supplier.supplier_email || "No email",
-        medicines: supplierMedicines.map((medicine) => medicine.name).join(", ") || "No medicines yet",
+        medicine_names: supplierMedicines.map((medicine) => medicine.name),
         medicine_count: supplierMedicines.length,
         invoice_count: supplierInvoices.length,
         invoice_amount: supplierInvoices.reduce((sum, invoice) => sum + Number(invoice.invoice_amount), 0),
@@ -240,146 +260,137 @@ export function ManagerReportSection({
   const unpaidInvoices = invoices.filter((invoice) => invoice.invoice_status === "unpaid");
 
   return (
-    <div className="space-y-6">
-      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
-        <CardHeader className="px-0 pt-0">
-          <CardTitle className="font-[family-name:var(--font-display)] text-2xl">Analytics hub</CardTitle>
-          <CardDescription>
-            Drill into sales performance, stock health, supplier activity, invoices, and cashouts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value as ReportSectionKey)}
-            orientation="vertical"
-            className="flex flex-col gap-6 lg:flex-row"
-          >
-            <TabsList
-              variant="line"
-              className="h-auto w-full shrink-0 flex-col items-stretch gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-2 lg:w-56"
-            >
-              {[
-                { key: "overview", label: "Overview" },
-                { key: "medicines", label: "Medicine report" },
-                { key: "suppliers", label: "Supplier report" },
-                { key: "invoices", label: "Invoice report" },
-                { key: "cashouts", label: "Cashout report" },
-              ].map((tab) => (
-                <TabsTrigger
-                  key={tab.key}
-                  value={tab.key}
-                  className="w-full justify-start rounded-xl px-3 py-2.5 data-active:bg-amber-500/10 data-active:text-amber-100"
+    <div className="space-y-5">
+      <ManagerCommandStrip
+        medicines={medicines}
+        unpaidInvoices={unpaidInvoices}
+        getStockLevel={getStockLevel}
+        getExpiryLevel={getExpiryLevel}
+      />
+
+      <WorkspacePanel>
+        <WorkspaceSectionHeader
+          title="Analytics command center"
+          description="Real-time intelligence across sales, inventory health, suppliers, invoices, and cash movement."
+        />
+
+        <div className="px-4 pb-6 sm:px-6 lg:px-7">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ReportSectionKey)}>
+            <ReportTabsNav
+              counts={{
+                medicines: medicines.length,
+                suppliers: suppliers.length,
+                invoices: invoices.length,
+                cashouts: cashouts.length,
+              }}
+            />
+
+            <TabsContent value="overview" className="mt-0 space-y-5">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={reportMode === "daily" ? "default" : "outline"}
+                  className={cn(reportMode !== "daily" && "border-white/14 bg-white/6 text-white/75")}
+                  onClick={() => setReportMode("daily")}
                 >
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+                  Daily
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={reportMode === "monthly" ? "default" : "outline"}
+                  className={cn(reportMode !== "monthly" && "border-white/14 bg-white/6 text-white/75")}
+                  onClick={() => setReportMode("monthly")}
+                >
+                  Monthly
+                </Button>
+                {reportMode === "daily" ? (
+                  <DateFilterPicker value={reportDay} onChange={setReportDay} placeholder="Pick a day" />
+                ) : (
+                  <DateFilterPicker
+                    value={reportMonth}
+                    onChange={setReportMonth}
+                    placeholder="Pick a month"
+                    granularity="month"
+                  />
+                )}
+              </div>
 
-            <div className="min-w-0 flex-1">
-              <TabsContent value="overview" className="mt-0 space-y-4">
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    variant={reportMode === "daily" ? "default" : "outline"}
-                    className={reportMode !== "daily" ? "border-white/10 bg-white/5" : undefined}
-                    onClick={() => setReportMode("daily")}
-                  >
-                    Daily
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={reportMode === "monthly" ? "default" : "outline"}
-                    className={reportMode !== "monthly" ? "border-white/10 bg-white/5" : undefined}
-                    onClick={() => setReportMode("monthly")}
-                  >
-                    Monthly
-                  </Button>
-                  {reportMode === "daily" ? (
-                    <DateFilterPicker value={reportDay} onChange={setReportDay} placeholder="Pick a day" />
-                  ) : (
-                    <DateFilterPicker
-                      value={reportMonth}
-                      onChange={setReportMonth}
-                      placeholder="Pick a month"
-                      granularity="month"
-                    />
-                  )}
-                </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <WorkspaceStat
+                  label="Total sales"
+                  value={formatCurrency(overview.totalSales)}
+                  tone="text-apex-orange-light"
+                  icon={DollarSign}
+                />
+                <WorkspaceStat
+                  label="Total profit"
+                  value={formatCurrency(overview.totalProfit)}
+                  tone="text-emerald-300"
+                  icon={TrendingUp}
+                />
+                <WorkspaceStat
+                  label="Units sold"
+                  value={String(overview.totalUnits)}
+                  tone="text-white"
+                  icon={Package}
+                />
+                <WorkspaceStat
+                  label="Net after cashout"
+                  value={formatCurrency(overview.netAfterCashout)}
+                  tone={overview.netAfterCashout >= 0 ? "text-emerald-200" : "text-red-300"}
+                  hint={`Cashouts: ${formatCurrency(overview.totalCashout)}`}
+                  icon={Wallet}
+                />
+              </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  {[
-                    { label: "Total sales", value: formatCurrency(overview.totalSales), tone: "text-amber-200" },
-                    { label: "Total profit", value: formatCurrency(overview.totalProfit), tone: "text-cyan-200" },
-                    { label: "Units sold", value: String(overview.totalUnits), tone: "text-white" },
-                    {
-                      label: "Net after cashout",
-                      value: formatCurrency(overview.netAfterCashout),
-                      tone: overview.netAfterCashout >= 0 ? "text-emerald-200" : "text-rose-200",
-                      hint: `Cashouts: ${formatCurrency(overview.totalCashout)}`,
-                    },
-                  ].map((stat) => (
-                    <div
-                      key={stat.label}
-                      className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                    >
-                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/45">{stat.label}</p>
-                      <p className={`mt-2 font-[family-name:var(--font-display)] text-2xl tracking-tight ${stat.tone}`}>
-                        {stat.value}
-                      </p>
-                      {"hint" in stat && stat.hint ? (
-                        <p className="mt-1 text-xs text-white/45">{stat.hint}</p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+              <ManagerAnalyticsCharts
+                purchases={filteredPurchases}
+                medicines={medicines}
+                getStockLevel={getStockLevel}
+                getExpiryLevel={getExpiryLevel}
+              />
 
+              <div>
+                <p className="mb-3 text-[0.62rem] font-black uppercase tracking-[0.2em] text-white/45">
+                  Sales ledger
+                </p>
                 <ReportDataTable columns={purchaseColumns} data={filteredPurchases} searchColumnId="medicine_name" />
-              </TabsContent>
+              </div>
+            </TabsContent>
 
-              <TabsContent value="medicines" className="mt-0">
-                <ReportDataTable columns={medicineColumns} data={medicineReportData} searchColumnId="name" />
-              </TabsContent>
+            <TabsContent value="medicines" className="mt-0">
+              <ReportDataTable columns={medicineColumns} data={medicineReportData} searchColumnId="name" />
+            </TabsContent>
 
-              <TabsContent value="suppliers" className="mt-0">
-                <ReportDataTable columns={supplierColumns} data={supplierReportData} searchColumnId="supplier_name" />
-              </TabsContent>
+            <TabsContent value="suppliers" className="mt-0">
+              <ReportDataTable columns={supplierColumns} data={supplierReportData} searchColumnId="supplier_name" />
+            </TabsContent>
 
-              <TabsContent value="invoices" className="mt-0 space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  {[
-                    { label: "Total invoices", value: invoices.length },
-                    { label: "Paid invoices", value: paidInvoices.length },
-                    { label: "Unpaid invoices", value: unpaidInvoices.length },
-                  ].map((stat) => (
-                    <div key={stat.label} className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
-                      <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold">{stat.value}</p>
-                    </div>
-                  ))}
-                </div>
-                <ReportDataTable columns={invoiceColumns} data={invoices} searchColumnId="invoice_number" />
-              </TabsContent>
+            <TabsContent value="invoices" className="mt-0 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <WorkspaceStat label="Total invoices" value={String(invoices.length)} />
+                <WorkspaceStat label="Paid" value={String(paidInvoices.length)} tone="text-emerald-300" />
+                <WorkspaceStat label="Unpaid" value={String(unpaidInvoices.length)} tone="text-apex-orange-light" />
+              </div>
+              <ReportDataTable columns={invoiceColumns} data={invoices} searchColumnId="invoice_number" />
+            </TabsContent>
 
-              <TabsContent value="cashouts" className="mt-0 space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-sm text-muted-foreground">Total cashout entries</p>
-                    <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold">{cashouts.length}</p>
-                  </div>
-                  <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-sm text-muted-foreground">Total cashout amount</p>
-                    <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold">
-                      {formatCurrency(cashouts.reduce((sum, item) => sum + Number(item.amount), 0))}
-                    </p>
-                  </div>
-                </div>
-                <ReportDataTable columns={cashoutColumns} data={cashouts} searchColumnId="reason" />
-              </TabsContent>
-            </div>
+            <TabsContent value="cashouts" className="mt-0 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <WorkspaceStat label="Cashout entries" value={String(cashouts.length)} />
+                <WorkspaceStat
+                  label="Total withdrawn"
+                  value={formatCurrency(cashouts.reduce((sum, item) => sum + Number(item.amount), 0))}
+                  tone="text-apex-orange-light"
+                />
+              </div>
+              <ReportDataTable columns={cashoutColumns} data={cashouts} searchColumnId="reason" />
+            </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+      </WorkspacePanel>
     </div>
   );
 }

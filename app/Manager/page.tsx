@@ -5,7 +5,7 @@ import ManagerView from "@/components/manager/ManagerView";
 
 export default function ManagerPage() {
   return (
-    <ProjectBackdrop className="min-h-screen bg-[#090d15] text-white">
+    <ProjectBackdrop variant="cinematic">
       <ManagerView />
     </ProjectBackdrop>
   );

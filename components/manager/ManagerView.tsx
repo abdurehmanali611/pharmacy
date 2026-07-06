@@ -172,7 +172,7 @@ export default function ManagerView() {
 
     const response = await fetchMedicinePage({
       page,
-      pageSize: 10,
+      pageSize: 4,
       search: search || undefined,
       createdDate: createdDate || undefined,
       ordering: "-created_at",
@@ -464,9 +464,8 @@ export default function ManagerView() {
       onSelect={(key) => setSelected(key as typeof selected)}
       onLogout={Logout}
       pageTitle={pageMeta.title}
-      pageDescription={pageMeta.description}
     >
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="relative mx-auto max-w-352 space-y-5">
       {selected === "Report" ? (
         <ManagerReportSection
           medicines={allMedicines}

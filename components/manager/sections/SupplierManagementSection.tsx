@@ -1,15 +1,22 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import type { z } from "zod";
 
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
+import { LinkedNamesCell } from "@/components/manager/LinkedNamesCell";
+import { paginateItems, TablePagination } from "@/components/manager/TablePagination";
+import { workspacePanelClass } from "@/components/manager/workspace";
 import { ConfirmDeleteButton } from "@/components/manager/ConfirmDeleteButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { addSupplier } from "@/lib/validations";
+import { cn } from "@/lib/utils";
 import type { InvoiceData, MedicineData, SupplierData } from "@/lib/actions";
+
+const SUPPLIER_PAGE_SIZE = 4;
 
 export function SupplierManagementSection({
   form,
@@ -34,9 +41,18 @@ export function SupplierManagementSection({
   onEdit: (supplier: SupplierData) => void;
   onDelete: (id: string) => void | Promise<void>;
 }) {
+  const [page, setPage] = useState(1);
+  const { items: pagedSuppliers, safePage, totalCount } = paginateItems(suppliers, page, SUPPLIER_PAGE_SIZE);
+
+  useEffect(() => {
+    if (page !== safePage) {
+      setPage(safePage);
+    }
+  }, [page, safePage]);
+
   return (
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.4fr]">
-      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
+      <Card className={cn(workspacePanelClass, "p-6")}>
         <CardHeader>
           <CardTitle>{supplierToEdit ? "Edit supplier" : "Add supplier"}</CardTitle>
           <CardDescription>Create suppliers once, then select them directly from medicine and invoice forms.</CardDescription>
@@ -79,12 +95,12 @@ export function SupplierManagementSection({
         </CardContent>
       </Card>
 
-      <Card className="glass panel-glow rounded-[1.75rem] border-white/10 p-6">
+      <Card className={cn(workspacePanelClass, "p-6")}>
         <CardHeader>
           <CardTitle>Supplier records</CardTitle>
           <CardDescription>Each supplier shows linked medicines and invoices for quick reporting.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -96,8 +112,8 @@ export function SupplierManagementSection({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {suppliers.length ? (
-                suppliers.map((supplier) => {
+              {pagedSuppliers.length ? (
+                pagedSuppliers.map((supplier) => {
                   const supplierMedicines = medicines.filter((medicine) => medicine.supplier_name === supplier.supplier_name);
                   const supplierInvoices = invoices.filter((invoice) => invoice.supplier_name === supplier.supplier_name);
 
@@ -111,12 +127,11 @@ export function SupplierManagementSection({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1">
-                          <p>{supplierMedicines.length} medicine(s)</p>
-                          <p className="text-xs text-muted-foreground">
-                            {supplierMedicines.slice(0, 3).map((medicine) => medicine.name).join(", ") || "None yet"}
-                          </p>
-                        </div>
+                        <LinkedNamesCell
+                          items={supplierMedicines.map((medicine) => medicine.name)}
+                          itemLabel="medicine"
+                          emptyLabel="No medicines yet"
+                        />
                       </TableCell>
                       <TableCell>{supplierInvoices.length}</TableCell>
                       <TableCell className="space-x-2">
@@ -141,6 +156,16 @@ export function SupplierManagementSection({
               )}
             </TableBody>
           </Table>
+
+          {totalCount > 0 ? (
+            <TablePagination
+              page={safePage}
+              pageSize={SUPPLIER_PAGE_SIZE}
+              totalCount={totalCount}
+              onPageChange={setPage}
+              itemLabel="suppliers"
+            />
+          ) : null}
         </CardContent>
       </Card>
     </div>

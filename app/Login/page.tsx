@@ -30,11 +30,11 @@ export default function LoginPage() {
   return (
     <AuthFrame
       eyebrow="Secure Access"
-      title="Enter the pharmacy cockpit"
-      description="Sign in to take over inventory, supplier flow, invoice control, cashouts, and the new multi-medicine selling experience."
-      sideLabel="Live Ops"
-      sideTitle="The back office no longer looks like the back office."
-      sideCopy="This system is tuned for urgency, speed, and visibility. Managers see the danger zones instantly. Pharmacists move faster with a search-first sales workflow."
+      title="Enter your pharmacy workspace"
+      description="Sign in to manage inventory, suppliers, invoices, cashouts, and the intelligent multi-medicine selling experience — powered by Apex Solution."
+      sideLabel="Live Operations"
+      sideTitle="Your pharmacy command center awaits."
+      sideCopy="Managers see danger zones instantly. Pharmacists move faster with search-first workflows. Every screen engineered by Apex Solution for speed, clarity, and scale."
     >
       <form
         className="flex flex-col gap-5"

@@ -190,7 +190,7 @@ const CloudinaryImageUploader = ({
             <HugeiconsIcon
               icon={ImageIcon}
               strokeWidth={2}
-              className="size-8 text-amber-300"
+              className="size-8 text-apex-orange-light"
             />
             <div className="space-y-1">
               <p className="text-sm font-medium text-stone-100">
@@ -278,11 +278,13 @@ const CustomFormField = <T extends FieldValues>(
               : undefined;
 
         return (
-          <Field className={className} data-invalid={hasError || undefined}>
+          <Field className={cn("min-w-0 flex-col gap-1.5", className)} data-invalid={hasError || undefined}>
             {label ? (
-              <FieldLabel htmlFor={String(name)}>{label}</FieldLabel>
+              <FieldLabel className="text-sm font-medium text-white/80" htmlFor={String(name)}>
+                {label}
+              </FieldLabel>
             ) : null}
-            <FieldContent>
+            <FieldContent className="w-full">
               {fieldType === formFieldTypes.INPUT ? (
                 <Input
                   id={String(name)}
@@ -340,7 +342,7 @@ const CustomFormField = <T extends FieldValues>(
                 >
                   <SelectTrigger
                     id={String(name)}
-                    className={className}
+                    className={cn("w-full", className)}
                     aria-invalid={hasError}
                   >
                     <SelectValue placeholder={placeholder} />
@@ -552,10 +554,10 @@ const TagInput = ({
               key={tag}
               type="button"
               onClick={() => removeTag(tag)}
-              className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1 text-sm text-amber-100 transition hover:bg-amber-400/20"
+              className="inline-flex items-center gap-2 rounded-full border border-apex-orange/20 bg-apex-orange/10 px-3 py-1 text-sm text-apex-orange-light transition hover:bg-(--apex-orange)/20"
             >
               <span>{tag}</span>
-              <span className="text-amber-300/80">x</span>
+              <span className="text-(--apex-orange)/80">x</span>
             </button>
           ))}
         </div>
