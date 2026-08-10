@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -61,6 +62,14 @@ export default function LoginPage() {
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
         </Button>
+        <p className="text-center text-sm text-white/55">
+          <Link
+            href="/Register"
+            className="font-semibold text-apex-orange-light transition hover:text-white"
+          >
+            New pharmacy? Register and submit setup payment
+          </Link>
+        </p>
       </form>
     </AuthFrame>
   );

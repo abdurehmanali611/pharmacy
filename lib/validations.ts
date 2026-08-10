@@ -6,8 +6,33 @@ export const registration = z.object({
     pharmacy_name: z.string().min(2, "Please Enter Valid pharmacy name"),
     role: z.enum(["Manager", "Pharmacist"], {message: "Please Select valid role"}),
     logoUrl: z.string().min(2, "Please Enter Valid logo url"),
-    pharmacy_tin: z.string().min(2, "Please Enter Valid TIN")
-})
+    pharmacy_tin: z.string().min(2, "Please Enter Valid TIN"),
+    payment_channel: z.string().optional(),
+    payment_transaction_ref: z.string().optional(),
+}).superRefine((data, ctx) => {
+    if ((data.role || "").toLowerCase() !== "manager") return;
+    const channel = (data.payment_channel || "").trim();
+    const ref = (data.payment_transaction_ref || "").trim();
+    if (!channel) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["payment_channel"],
+            message: "Select a payment channel",
+        });
+    }
+    if (ref.length < 4) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["payment_transaction_ref"],
+            message: "Transfer ID must be at least 4 characters",
+        });
+    }
+});
+
+export const tenantPayment = z.object({
+    payment_channel: z.string().min(1, "Select a payment channel"),
+    transaction_ref: z.string().min(4, "Transfer ID must be at least 4 characters"),
+});
 
 export const login = z.object({
     username: z.string().min(2, "Please Enter registered username"),

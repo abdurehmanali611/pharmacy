@@ -9,33 +9,33 @@ import { toast } from "sonner";
 
 import { AuthFrame } from "@/components/chrome/AuthFrame";
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   APEX_SOLUTION_CBE_ACCOUNT,
   PAYMENT_CHANNEL_META,
   PAYMENT_CHANNELS,
 } from "@/constants/payments";
 import { getBillingMe, Logout, submitTenantPayment } from "@/lib/actions";
-
-const schema = z.object({
-  payment_channel: z.string().min(1, "Choose a payment channel"),
-  transaction_ref: z.string().min(4, "Transfer ID must be at least 4 characters"),
-});
-
-type FormValues = z.infer<typeof schema>;
+import { tenantPayment } from "@/lib/validations";
 
 export default function PaymentVerificationPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [billing, setBilling] = useState<any>(null);
-  const [paymentKind, setPaymentKind] = useState<string>("setup");
+  const [paymentKind, setPaymentKind] = useState<"setup" | "quarterly">("setup");
   const [pending, setPending] = useState<any>(null);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const form = useForm<z.infer<typeof tenantPayment>>({
+    resolver: zodResolver(tenantPayment),
     defaultValues: {
       payment_channel: PAYMENT_CHANNELS[0],
       transaction_ref: "",
@@ -55,7 +55,6 @@ export default function PaymentVerificationPage() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     const role = (localStorage.getItem("Role") || "").toLowerCase();
-    const mode = localStorage.getItem("access_mode");
     if (!token) {
       router.replace("/Login");
       return;
@@ -65,17 +64,17 @@ export default function PaymentVerificationPage() {
       router.replace("/Login");
       return;
     }
-    if (mode && mode !== "payment_portal") {
-      router.replace("/Manager");
-      return;
-    }
 
     void getBillingMe()
       .then((data) => {
         setBilling(data.billing);
-        setPaymentKind(data.payment_kind || localStorage.getItem("payment_kind") || "setup");
+        const kind =
+          (data.payment_kind as "setup" | "quarterly") ||
+          (localStorage.getItem("payment_kind") as "setup" | "quarterly") ||
+          "setup";
+        setPaymentKind(kind);
         setPending(data.pending_submission);
-        if (data.access_mode === "full") {
+        if (data.access_mode === "full" && data.period_status === "active") {
           localStorage.setItem("access_mode", "full");
           router.replace("/Manager");
         }
@@ -86,7 +85,7 @@ export default function PaymentVerificationPage() {
       .finally(() => setLoading(false));
   }, [router]);
 
-  async function onSubmit(values: FormValues) {
+  async function onSubmit(values: z.infer<typeof tenantPayment>) {
     setSubmitting(true);
     try {
       const result = await submitTenantPayment({
@@ -102,8 +101,8 @@ export default function PaymentVerificationPage() {
         transaction_ref: "",
       });
       if (paymentKind === "setup") {
-        toast.message("You will regain access once Apex approves the setup payment.");
-        await Logout();
+        toast.message("You can sign in again after Apex approves setup.");
+        localStorage.clear();
         router.replace("/Login");
       }
     } catch (err: any) {

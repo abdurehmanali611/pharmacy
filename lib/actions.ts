@@ -95,8 +95,10 @@ api.interceptors.request.use((config) => {
     const method = config.method?.toLowerCase();
     const isAuthLogin = url.includes("/auth/login");
     const isUserCreation = url.endsWith("/user/") && method === "post";
+    const isPublicBilling =
+      url.includes("/billing/signup-status") || url.includes("/billing/resubmit-setup");
 
-    if (isAuthLogin || isUserCreation) {
+    if (isAuthLogin || isUserCreation || isPublicBilling) {
       if (config.headers) {
         delete config.headers.Authorization;
         delete config.headers.authorization;
@@ -178,6 +180,8 @@ export interface createUser {
     role: string;
     logoUrl: string;
     pharmacy_tin: string;
+    payment_channel?: string;
+    payment_transaction_ref?: string;
 }
 
 export interface updateUser extends createUser {
@@ -309,15 +313,15 @@ export interface updateCashout extends createCashout {
   id: string;
 }
 
-export async function UserCreation(data: createUser, setLoading: (loading: boolean) => void, router: AppRouterInstance) {
+export async function UserCreation(data: createUser, setLoading: (loading: boolean) => void, router?: AppRouterInstance) {
   try {
     setLoading(true);
     const response = await api.post("/user/", data);
-    toast.success("User created successfully");
-    router.push("/");
+    toast.success("Registration submitted. Waiting for Apex payment approval.");
     return response.data;
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to create user"));
+    return null;
   } finally {
     setLoading(false);
   }
@@ -794,5 +798,29 @@ export async function submitTenantPayment(data: {
   transaction_ref: string;
 }) {
   const response = await api.post("/billing/submit-payment/", data);
+  return response.data;
+}
+
+export async function fetchSignupRegistrationStatus(username: string) {
+  const response = await api.get("/billing/signup-status/", { params: { username } });
+  return response.data as {
+    status: "pending" | "approved" | "rejected" | "not_found";
+    pharmacy_name?: string;
+    pharmacy_tin?: string;
+    setup_fee_etb?: number;
+    transaction_ref?: string;
+    payment_channel?: string;
+    rejection_reason?: string;
+    detail?: string;
+  };
+}
+
+export async function resubmitSignupSetupPayment(data: {
+  username: string;
+  password: string;
+  payment_channel: string;
+  transaction_ref: string;
+}) {
+  const response = await api.post("/billing/resubmit-setup/", data);
   return response.data;
 }
