@@ -375,16 +375,27 @@ export async function Login(data: {username: string, password: string}, setLoadi
   try {
     setLoading(true);
     const response = await api.post("/auth/login/", data);
-    const { access, refresh, user } = response.data;
+    const { access, refresh, user, access_mode, payment_kind, period_status, billing } = response.data;
     localStorage.setItem("token", access);
     localStorage.setItem("refresh", refresh);
     localStorage.setItem("Role", user.role);
     localStorage.setItem("Pharmacy", user.pharmacy_name);
     localStorage.setItem("Logo", user.logoUrl);
     localStorage.setItem("PharmacyTin", user.pharmacy_tin);
+    localStorage.setItem("access_mode", access_mode || "full");
+    if (payment_kind) localStorage.setItem("payment_kind", payment_kind);
+    else localStorage.removeItem("payment_kind");
+    if (period_status) localStorage.setItem("period_status", period_status);
+    if (billing) localStorage.setItem("billing", JSON.stringify(billing));
     setAuthCookie(access);
     api.defaults.headers.common["Authorization"] = `Bearer ${access}`
     toast.success(`welcome back, ${data.username}!`);
+
+    if (access_mode === "payment_portal") {
+      router.push("/PaymentVerification");
+      toast.message("Complete payment verification to unlock Medicare.");
+      return response.data;
+    }
 
     if (user.role.toLowerCase() === "manager") {
       router.push("/Manager");
@@ -770,4 +781,18 @@ export async function deleteCashoutRecord(id: number, setLoading: (loading: bool
   } finally {
     setLoading(false);
   }
+}
+
+export async function getBillingMe() {
+  const response = await api.get("/billing/me/");
+  return response.data;
+}
+
+export async function submitTenantPayment(data: {
+  payment_kind: string;
+  payment_channel: string;
+  transaction_ref: string;
+}) {
+  const response = await api.post("/billing/submit-payment/", data);
+  return response.data;
 }
