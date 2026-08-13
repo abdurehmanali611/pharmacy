@@ -26,13 +26,39 @@ import {
 import { getBillingMe, Logout, submitTenantPayment } from "@/lib/actions";
 import { tenantPayment } from "@/lib/validations";
 
+type BillingSnapshot = {
+  setup_fee_etb?: number;
+  quarterly_fee_etb?: number;
+  setup_fee_approved?: boolean;
+  free_trial_ends_at?: string | null;
+  subscription_paid_until?: string | null;
+};
+
+type PendingSubmission = {
+  transaction_ref?: string;
+  status?: string;
+} | null;
+
+function apiErrorDetail(error: unknown, fallback: string) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as { response?: { data?: { detail?: unknown } } }).response?.data
+      ?.detail === "string"
+  ) {
+    return (error as { response: { data: { detail: string } } }).response.data.detail;
+  }
+  return fallback;
+}
+
 export default function PaymentVerificationPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [billing, setBilling] = useState<any>(null);
+  const [billing, setBilling] = useState<BillingSnapshot | null>(null);
   const [paymentKind, setPaymentKind] = useState<"setup" | "quarterly">("setup");
-  const [pending, setPending] = useState<any>(null);
+  const [pending, setPending] = useState<PendingSubmission>(null);
 
   const form = useForm<z.infer<typeof tenantPayment>>({
     resolver: zodResolver(tenantPayment),
@@ -79,8 +105,8 @@ export default function PaymentVerificationPage() {
           router.replace("/Manager");
         }
       })
-      .catch((err: any) => {
-        toast.error(err?.response?.data?.detail || "Failed to load billing");
+      .catch((err: unknown) => {
+        toast.error(apiErrorDetail(err, "Failed to load billing"));
       })
       .finally(() => setLoading(false));
   }, [router]);
@@ -105,8 +131,8 @@ export default function PaymentVerificationPage() {
         localStorage.clear();
         router.replace("/Login");
       }
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || "Failed to submit payment");
+    } catch (err: unknown) {
+      toast.error(apiErrorDetail(err, "Failed to submit payment"));
     } finally {
       setSubmitting(false);
     }

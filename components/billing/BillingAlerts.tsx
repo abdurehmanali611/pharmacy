@@ -39,6 +39,7 @@ export function BillingAlerts({ className }: { className?: string }) {
   const [state, setState] = useState<BillingState | null>(null);
   const [open, setOpen] = useState(false);
   const [isManager, setIsManager] = useState(false);
+  const [nowMs, setNowMs] = useState(0);
 
   async function refresh() {
     try {
@@ -68,8 +69,12 @@ export function BillingAlerts({ className }: { className?: string }) {
     const role = (localStorage.getItem("Role") || "").toLowerCase();
     setIsManager(role === "manager");
     if (role !== "manager") return;
+    setNowMs(Date.now());
     void refresh();
-    const id = window.setInterval(refresh, 60000);
+    const id = window.setInterval(() => {
+      setNowMs(Date.now());
+      void refresh();
+    }, 60000);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -98,10 +103,10 @@ export function BillingAlerts({ className }: { className?: string }) {
       paymentKind === "setup"
         ? state?.billing?.free_trial_ends_at
         : state?.billing?.subscription_paid_until;
-    if (!end) return null;
-    const ms = new Date(end).getTime() - Date.now();
+    if (!end || !nowMs) return null;
+    const ms = new Date(end).getTime() - nowMs;
     return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
-  }, [paymentKind, state]);
+  }, [paymentKind, state, nowMs]);
 
   const infoLines = useMemo(() => {
     const lines: string[] = [];

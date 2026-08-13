@@ -313,7 +313,7 @@ export interface updateCashout extends createCashout {
   id: string;
 }
 
-export async function UserCreation(data: createUser, setLoading: (loading: boolean) => void, router?: AppRouterInstance) {
+export async function UserCreation(data: createUser, setLoading: (loading: boolean) => void) {
   try {
     setLoading(true);
     const response = await api.post("/user/", data);
