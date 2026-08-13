@@ -62,12 +62,13 @@ export default function LoginPage() {
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
         </Button>
-        <p className="text-center text-sm text-white/55">
+        <p className="text-center text-sm text-white/50">
+          New pharmacy?{" "}
           <Link
             href="/Register"
-            className="font-semibold text-apex-orange-light transition hover:text-white"
+            className="text-white/75 underline-offset-4 transition hover:text-white hover:underline"
           >
-            New pharmacy? Register and submit setup payment
+            Create an account
           </Link>
         </p>
       </form>

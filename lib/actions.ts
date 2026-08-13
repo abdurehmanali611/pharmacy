@@ -836,3 +836,29 @@ export async function resubmitSignupSetupPayment(data: {
   const response = await api.post("/billing/resubmit-setup/", data);
   return response.data;
 }
+
+export type TenantFeedbackMessage = {
+  id: number;
+  sender_side: string;
+  body: string;
+  image_url?: string;
+  sender_username?: string;
+  created_at: string;
+};
+
+export async function fetchTenantFeedbackInbox(opts?: { markRead?: boolean }) {
+  const response = await api.get("/billing/feedback/inbox/", {
+    params: opts?.markRead ? { mark_read: "1" } : undefined,
+  });
+  return response.data as {
+    thread_id: number;
+    status: string;
+    unread_from_apex: number;
+    messages: TenantFeedbackMessage[];
+  };
+}
+
+export async function sendTenantFeedbackMessage(body: string, image_url = "") {
+  const response = await api.post("/billing/feedback/send/", { body, image_url });
+  return response.data as TenantFeedbackMessage;
+}

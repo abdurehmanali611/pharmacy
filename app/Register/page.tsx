@@ -20,7 +20,14 @@ import { registration } from "@/lib/validations";
 
 const RECEIPT_KEY = "medicare_signup_receipt";
 
-type Receipt = { username: string; pharmacy_name: string };
+type Receipt = {
+  username: string;
+  pharmacy_name: string;
+  pharmacy_tin?: string;
+  payment_channel?: string;
+  payment_transaction_ref?: string;
+  setup_fee_etb?: number;
+};
 
 function formatEtb(n: number) {
   return `${Math.round(n).toLocaleString()} ETB`;
@@ -83,9 +90,13 @@ export default function RegisterPage() {
   const onSubmit = async (data: z.infer<typeof registration>) => {
     const result = await UserCreation(data, setLoading);
     if (!result) return;
-    const next = {
+    const next: Receipt = {
       username: data.username.trim(),
       pharmacy_name: data.pharmacy_name.trim(),
+      pharmacy_tin: data.pharmacy_tin.trim(),
+      payment_channel: data.payment_channel,
+      payment_transaction_ref: data.payment_transaction_ref.trim(),
+      setup_fee_etb: setupFee ?? undefined,
     };
     localStorage.setItem(RECEIPT_KEY, JSON.stringify(next));
     setReceipt(next);
@@ -117,6 +128,10 @@ export default function RegisterPage() {
         <SignupPendingApprovalScreen
           username={receipt.username}
           pharmacyName={receipt.pharmacy_name}
+          pharmacyTin={receipt.pharmacy_tin}
+          paymentChannel={receipt.payment_channel}
+          paymentTransactionRef={receipt.payment_transaction_ref}
+          setupFeeEtb={receipt.setup_fee_etb}
         />
       ) : (
         <form className="grid gap-5" onSubmit={form.handleSubmit(onSubmit)}>
@@ -208,14 +223,15 @@ export default function RegisterPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Submitting…" : "Register & submit payment"}
+            {loading ? "Submitting…" : `Register · pay ${setupLabel}`}
           </Button>
-          <p className="text-center text-sm text-white/55">
+          <p className="text-center text-sm text-white/50">
+            Already registered?{" "}
             <Link
               href="/Login"
-              className="font-semibold text-apex-orange-light transition hover:text-white"
+              className="text-white/75 underline-offset-4 transition hover:text-white hover:underline"
             >
-              Already have an account? Sign in
+              Sign in
             </Link>
           </p>
         </form>

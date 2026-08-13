@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { LogOut } from "lucide-react";
 
 import { BillingAlerts } from "@/components/billing/BillingAlerts";
+import { TenantFeedbackCenter } from "@/components/feedback/TenantFeedbackCenter";
 import { ApexMark, ApexMarkIcon } from "@/components/chrome/ApexMark";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -170,7 +171,10 @@ export function AppShell({
                   {pageTitle}
                 </h1>
               </div>
-              <BillingAlerts />
+              <div className="flex items-center gap-2">
+                <BillingAlerts />
+                <TenantFeedbackCenter />
+              </div>
             </div>
           </header>
 

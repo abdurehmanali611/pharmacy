@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CreditCard } from "lucide-react";
+import { toast } from "sonner";
 
 import { PaymentSubmitDialog } from "@/components/billing/PaymentSubmitDialog";
 import { Badge } from "@/components/ui/badge";
@@ -12,12 +14,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getBillingMe } from "@/lib/actions";
+import { getBillingMe, Logout } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
 type BillingState = {
   period_status: string;
   payment_kind: string | null;
+  access_mode?: string;
   billing: {
     setup_fee_etb?: number;
     quarterly_fee_etb?: number;
@@ -28,7 +31,11 @@ type BillingState = {
   pending_submission?: { transaction_ref?: string; status?: string } | null;
 };
 
+const SOFT_PERIODS = new Set(["trial_ending", "warning"]);
+const HARD_PERIODS = new Set(["trial_expired", "grace", "expired"]);
+
 export function BillingAlerts({ className }: { className?: string }) {
+  const router = useRouter();
   const [state, setState] = useState<BillingState | null>(null);
   const [open, setOpen] = useState(false);
   const [isManager, setIsManager] = useState(false);
@@ -41,6 +48,17 @@ export function BillingAlerts({ className }: { className?: string }) {
       if (data.billing) localStorage.setItem("billing", JSON.stringify(data.billing));
       if (data.payment_kind) localStorage.setItem("payment_kind", data.payment_kind);
       if (data.access_mode) localStorage.setItem("access_mode", data.access_mode);
+
+      if (data.access_mode === "denied" || data.period_status === "on_hold") {
+        toast.error("This pharmacy is on billing hold. Contact Apex support.");
+        await Logout();
+        router.replace("/Login");
+        return;
+      }
+
+      if (data.access_mode === "payment_portal") {
+        router.replace("/PaymentVerification");
+      }
     } catch {
       // ignore while offline
     }
@@ -53,15 +71,13 @@ export function BillingAlerts({ className }: { className?: string }) {
     void refresh();
     const id = window.setInterval(refresh, 60000);
     return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const period = state?.period_status || "";
-  const needsAttention = [
-    "trial_ending",
-    "trial_expired",
-    "grace",
-    "expired",
-  ].includes(period);
+  const isSoft = SOFT_PERIODS.has(period);
+  const isHard = HARD_PERIODS.has(period);
+  const needsAttention = isSoft || isHard;
 
   const paymentKind = useMemo<"setup" | "quarterly">(() => {
     if (period === "trial_ending" || period === "trial_expired") return "setup";
@@ -87,13 +103,33 @@ export function BillingAlerts({ className }: { className?: string }) {
     return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
   }, [paymentKind, state]);
 
-  // Auto-open dialog when trial ends or subscription enters grace/expired.
+  const infoLines = useMemo(() => {
+    const lines: string[] = [];
+    if (paymentKind === "setup") {
+      lines.push("Setup fee unlocks your Medicare pharmacy workspace after Apex approval.");
+      if (state?.billing?.free_trial_ends_at) {
+        lines.push(
+          `Trial ends: ${new Date(state.billing.free_trial_ends_at).toLocaleDateString()}`,
+        );
+      }
+    } else {
+      lines.push("Quarterly subscription keeps inventory, sales, and staff access active.");
+      if (state?.billing?.subscription_paid_until) {
+        lines.push(
+          `Paid until: ${new Date(state.billing.subscription_paid_until).toLocaleDateString()}`,
+        );
+      }
+      if (period === "grace") {
+        lines.push("Grace period active — renew soon to avoid service interruption.");
+      }
+    }
+    return lines;
+  }, [paymentKind, period, state]);
+
   useEffect(() => {
     if (!isManager) return;
-    if (["trial_expired", "grace", "expired"].includes(period)) {
-      setOpen(true);
-    }
-  }, [period, isManager]);
+    if (isHard) setOpen(true);
+  }, [isHard, isManager]);
 
   if (!isManager || !needsAttention) return null;
 
@@ -108,14 +144,14 @@ export function BillingAlerts({ className }: { className?: string }) {
               size="icon"
               className={cn(
                 "relative shrink-0 border-amber-500/40 bg-amber-500/10",
-                period !== "trial_ending" && "animate-pulse",
+                isHard && "animate-pulse",
                 className,
               )}
               onClick={() => setOpen(true)}
-              aria-label="Submit payment transfer ID"
+              aria-label="Open payment verification"
             >
               <CreditCard className="size-4 text-amber-400" />
-              {daysLeft !== null ? (
+              {daysLeft !== null && isSoft ? (
                 <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
                   {daysLeft}
                 </span>
@@ -127,7 +163,9 @@ export function BillingAlerts({ className }: { className?: string }) {
           <TooltipContent side="bottom" className="max-w-56 text-center">
             <p className="font-semibold capitalize">{period.replaceAll("_", " ")}</p>
             <p className="text-xs text-muted-foreground">
-              Tap to submit your transfer ID for Apex approval
+              {isHard
+                ? "Payment required to continue using Medicare"
+                : "Tap to review payment details and submit a transfer ID"}
             </p>
           </TooltipContent>
         </Tooltip>
@@ -138,12 +176,19 @@ export function BillingAlerts({ className }: { className?: string }) {
         onOpenChange={setOpen}
         paymentKind={paymentKind}
         amountETB={amount}
+        blocking={isHard}
+        infoLines={infoLines}
         pendingMessage={
           state?.pending_submission
             ? `Pending transfer ID: ${state.pending_submission.transaction_ref}`
             : null
         }
-        onSubmitted={() => void refresh()}
+        onSubmitted={() => {
+          void refresh();
+          if (isHard) {
+            toast.message("Submitted — you can sign out and return after Apex approves.");
+          }
+        }}
       />
     </>
   );

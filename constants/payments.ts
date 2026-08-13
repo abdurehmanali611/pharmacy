@@ -1,5 +1,12 @@
 export const APEX_SOLUTION_CBE_ACCOUNT = "1000418779358";
 
+export const SETUP_APPROVAL_WAIT_MINUTES = 30;
+
+export const APEX_WHATSAPP_SUPPORT = [
+  { e164: "+251935000642", waMe: "251935000642" },
+  { e164: "+251930272975", waMe: "251930272975" },
+] as const;
+
 export const PAYMENT_CHANNELS = [
   "Telebirr",
   "Commercial Bank of Ethiopia",

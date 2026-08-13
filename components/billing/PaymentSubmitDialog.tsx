@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,7 +23,7 @@ import {
   PAYMENT_CHANNEL_META,
   PAYMENT_CHANNELS,
 } from "@/constants/payments";
-import { submitTenantPayment } from "@/lib/actions";
+import { Logout, submitTenantPayment } from "@/lib/actions";
 import { tenantPayment } from "@/lib/validations";
 
 type PaymentKind = "setup" | "quarterly";
@@ -34,6 +35,9 @@ type Props = {
   amountETB: number;
   pendingMessage?: string | null;
   onSubmitted?: () => void;
+  /** When true, dialog cannot be dismissed until payment is submitted or user signs out. */
+  blocking?: boolean;
+  infoLines?: string[];
 };
 
 export function PaymentSubmitDialog({
@@ -43,8 +47,12 @@ export function PaymentSubmitDialog({
   amountETB,
   pendingMessage,
   onSubmitted,
+  blocking = false,
+  infoLines,
 }: Props) {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const form = useForm<z.infer<typeof tenantPayment>>({
     resolver: zodResolver(tenantPayment),
     defaultValues: {
@@ -62,6 +70,13 @@ export function PaymentSubmitDialog({
     [paymentKind],
   );
 
+  const description = useMemo(() => {
+    if (paymentKind === "setup") {
+      return "Your free trial has ended (or is ending). Pay the Medicare setup fee to Apex Solution, then enter your transfer ID.";
+    }
+    return "Your quarterly subscription needs renewal. Pay Apex Solution, then enter your transfer ID for approval.";
+  }, [paymentKind]);
+
   async function onSubmit(values: z.infer<typeof tenantPayment>) {
     setSubmitting(true);
     try {
@@ -75,26 +90,57 @@ export function PaymentSubmitDialog({
         payment_channel: values.payment_channel,
         transaction_ref: "",
       });
-      onOpenChange(false);
+      if (!blocking) onOpenChange(false);
       onSubmitted?.();
       if (paymentKind === "setup") {
         localStorage.setItem("access_mode", "denied");
       }
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || "Failed to submit payment");
+    } catch (err: unknown) {
+      const detail =
+        typeof err === "object" &&
+        err &&
+        "response" in err &&
+        typeof (err as { response?: { data?: { detail?: string } } }).response?.data
+          ?.detail === "string"
+          ? (err as { response: { data: { detail: string } } }).response.data.detail
+          : "Failed to submit payment";
+      toast.error(detail);
     } finally {
       setSubmitting(false);
     }
   }
 
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await Logout();
+      router.replace("/Login");
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (blocking && !next) return;
+        onOpenChange(next);
+      }}
+    >
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+        showCloseButton={!blocking}
+        onPointerDownOutside={(e) => {
+          if (blocking) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (blocking) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            Pay Apex Solution, then enter your bank/Telebirr transfer ID for approval.
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -109,11 +155,24 @@ export function PaymentSubmitDialog({
               Amount due:{" "}
               <Badge variant="secondary">{amountETB.toLocaleString()} ETB</Badge>
             </p>
+            {infoLines?.length ? (
+              <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                {infoLines.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           {pendingMessage ? (
             <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm">
               {pendingMessage}
+            </p>
+          ) : null}
+
+          {blocking ? (
+            <p className="rounded-lg border border-amber-500/25 bg-amber-500/8 px-3 py-2 text-sm text-amber-100">
+              Access is paused until Apex approves this payment. Submit a transfer ID or sign out.
             </p>
           ) : null}
 
@@ -137,11 +196,33 @@ export function PaymentSubmitDialog({
               placeholder={meta.transactionPlaceholder}
               description={meta.hint}
             />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
+            <DialogFooter
+              className={
+                blocking
+                  ? "flex-col gap-2 sm:flex-col sm:space-x-0"
+                  : undefined
+              }
+            >
+              {blocking ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={submitting || signingOut}
+                  onClick={() => void handleSignOut()}
+                >
+                  {signingOut ? "Signing out…" : "Sign out"}
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+              )}
+              <Button
+                type="submit"
+                disabled={submitting || signingOut}
+                className={blocking ? "w-full" : undefined}
+              >
                 {submitting ? "Submitting…" : "Submit transfer ID"}
               </Button>
             </DialogFooter>
