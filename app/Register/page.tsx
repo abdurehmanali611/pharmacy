@@ -95,7 +95,7 @@ export default function RegisterPage() {
       pharmacy_name: data.pharmacy_name.trim(),
       pharmacy_tin: data.pharmacy_tin.trim(),
       payment_channel: data.payment_channel,
-      payment_transaction_ref: data.payment_transaction_ref.trim(),
+      payment_transaction_ref: data.payment_transaction_ref?.trim() ?? "",
       setup_fee_etb: setupFee ?? undefined,
     };
     localStorage.setItem(RECEIPT_KEY, JSON.stringify(next));
