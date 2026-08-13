@@ -15,16 +15,24 @@ import {
   PAYMENT_CHANNEL_META,
   PAYMENT_CHANNELS,
 } from "@/constants/payments";
-import { UserCreation } from "@/lib/actions";
+import { UserCreation, fetchPublicPricing } from "@/lib/actions";
 import { registration } from "@/lib/validations";
 
 const RECEIPT_KEY = "medicare_signup_receipt";
 
 type Receipt = { username: string; pharmacy_name: string };
 
+function formatEtb(n: number) {
+  return `${Math.round(n).toLocaleString()} ETB`;
+}
+
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [setupFee, setSetupFee] = useState<number | null>(null);
+  const [quarterlyFee, setQuarterlyFee] = useState<number | null>(null);
+  const [pricingDescription, setPricingDescription] = useState("");
+  const [pricingLoading, setPricingLoading] = useState(true);
 
   const form = useForm<z.infer<typeof registration>>({
     resolver: zodResolver(registration),
@@ -49,6 +57,29 @@ export default function RegisterPage() {
     }
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      setPricingLoading(true);
+      try {
+        const data = await fetchPublicPricing();
+        if (!active) return;
+        setSetupFee(Number(data.setup_fee_etb) || 0);
+        setQuarterlyFee(Number(data.quarterly_fee_etb) || 0);
+        setPricingDescription((data.description || "").trim());
+      } catch {
+        if (!active) return;
+        setSetupFee(15000);
+        setQuarterlyFee(5000);
+      } finally {
+        if (active) setPricingLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const onSubmit = async (data: z.infer<typeof registration>) => {
     const result = await UserCreation(data, setLoading);
     if (!result) return;
@@ -69,6 +100,9 @@ export default function RegisterPage() {
       payment_transaction_ref: "",
     });
   };
+
+  const setupLabel =
+    setupFee == null || pricingLoading ? "…" : formatEtb(setupFee);
 
   return (
     <AuthFrame
@@ -135,8 +169,23 @@ export default function RegisterPage() {
                 {APEX_SOLUTION_CBE_ACCOUNT}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Pay the setup fee (15,000 ETB), then enter your Telebirr/CBE transfer ID.
+                Pay the setup fee ({setupLabel}), then enter your Telebirr/CBE
+                transfer ID.
               </p>
+              {pricingDescription ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {pricingDescription}
+                </p>
+              ) : null}
+              {quarterlyFee != null && !pricingLoading ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  After setup approval, quarterly subscription is{" "}
+                  <span className="font-medium text-foreground/90">
+                    {formatEtb(quarterlyFee)}
+                  </span>
+                  .
+                </p>
+              ) : null}
             </div>
             <CustomFormField
               control={form.control}

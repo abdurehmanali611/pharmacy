@@ -792,6 +792,18 @@ export async function getBillingMe() {
   return response.data;
 }
 
+export async function fetchPublicPricing() {
+  const response = await api.get("/billing/pricing/");
+  return response.data as {
+    business_type: string;
+    setup_fee_etb: number;
+    quarterly_fee_etb: number;
+    yearly_fee_etb?: number;
+    source?: string;
+    description?: string;
+  };
+}
+
 export async function submitTenantPayment(data: {
   payment_kind: string;
   payment_channel: string;
