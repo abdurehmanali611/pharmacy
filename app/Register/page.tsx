@@ -15,7 +15,9 @@ import {
   PAYMENT_CHANNEL_META,
   PAYMENT_CHANNELS,
 } from "@/constants/payments";
-import { UserCreation, fetchPublicPricing } from "@/lib/actions";
+import { UserCreation, fetchPublicPricing, fetchPublicSalesAgents } from "@/lib/actions";
+import { SalesAgentSelector } from "@/components/signup/SalesAgentSelector";
+import { Label } from "@/components/ui/label";
 import { registration } from "@/lib/validations";
 
 const RECEIPT_KEY = "medicare_signup_receipt";
@@ -40,6 +42,8 @@ export default function RegisterPage() {
   const [quarterlyFee, setQuarterlyFee] = useState<number | null>(null);
   const [pricingDescription, setPricingDescription] = useState("");
   const [pricingLoading, setPricingLoading] = useState(true);
+  const [agents, setAgents] = useState<{ id: number; displayName: string; phone?: string | null; city?: string | null }[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(true);
 
   const form = useForm<z.infer<typeof registration>>({
     resolver: zodResolver(registration),
@@ -52,6 +56,7 @@ export default function RegisterPage() {
       pharmacy_tin: "",
       payment_channel: PAYMENT_CHANNELS[0],
       payment_transaction_ref: "",
+      sales_agent_id: null,
     },
   });
 
@@ -87,6 +92,23 @@ export default function RegisterPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const rows = await fetchPublicSalesAgents();
+        if (active) setAgents(rows);
+      } catch {
+        if (active) setAgents([]);
+      } finally {
+        if (active) setAgentsLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const onSubmit = async (data: z.infer<typeof registration>) => {
     const result = await UserCreation(data, setLoading);
     if (!result) return;
@@ -109,6 +131,7 @@ export default function RegisterPage() {
       pharmacy_tin: "",
       payment_channel: PAYMENT_CHANNELS[0],
       payment_transaction_ref: "",
+      sales_agent_id: null,
     });
   };
 
@@ -174,6 +197,16 @@ export default function RegisterPage() {
             fieldType={formFieldTypes.IMAGE_UPLOADER}
             label="Pharmacy Logo"
           />
+
+          <div className="space-y-2">
+            <Label>Sales agent (optional)</Label>
+            <SalesAgentSelector
+              value={form.watch("sales_agent_id") ?? null}
+              onChange={(next) => form.setValue("sales_agent_id", next)}
+              agents={agents}
+              loading={agentsLoading}
+            />
+          </div>
 
           <div className="space-y-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
             <div>

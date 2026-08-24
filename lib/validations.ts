@@ -9,6 +9,7 @@ export const registration = z.object({
     pharmacy_tin: z.string().min(2, "Please Enter Valid TIN"),
     payment_channel: z.string().optional(),
     payment_transaction_ref: z.string().optional(),
+    sales_agent_id: z.number().int().positive().nullable().optional(),
 }).superRefine((data, ctx) => {
     if ((data.role || "").toLowerCase() !== "manager") return;
     const channel = (data.payment_channel || "").trim();

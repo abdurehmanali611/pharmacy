@@ -182,6 +182,7 @@ export interface createUser {
     pharmacy_tin: string;
     payment_channel?: string;
     payment_transaction_ref?: string;
+    sales_agent_id?: number | null;
 }
 
 export interface updateUser extends createUser {
@@ -802,6 +803,16 @@ export async function fetchPublicPricing() {
     source?: string;
     description?: string;
   };
+}
+
+export async function fetchPublicSalesAgents() {
+  const response = await api.get("/billing/sales-agents/");
+  return (response.data ?? []) as {
+    id: number;
+    displayName: string;
+    phone?: string | null;
+    city?: string | null;
+  }[];
 }
 
 export async function submitTenantPayment(data: {
