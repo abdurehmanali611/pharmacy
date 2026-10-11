@@ -348,3 +348,105 @@
       0 40px 120px -50px rgba(0, 0, 0, 0.95);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Auth shell — split-screen login/register/signup surfaces            */
+/* ------------------------------------------------------------------ */
+
+@keyframes auth-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes auth-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes auth-orb-a {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; }
+  50% { transform: translate(24px, -18px) scale(1.08); opacity: 0.6; }
+}
+
+@keyframes auth-orb-b {
+  0%, 100% { transform: translate(0, 0) scale(1.05); opacity: 0.7; }
+  50% { transform: translate(-20px, 20px) scale(0.95); opacity: 0.45; }
+}
+
+@keyframes auth-orb-c {
+  0%, 100% { transform: translate(-50%, 0) scale(1); opacity: 0.55; }
+  50% { transform: translate(-50%, 14px) scale(1.06); opacity: 0.35; }
+}
+
+@keyframes auth-grid-shift {
+  0% { background-position: 0 0; }
+  100% { background-position: 56px 56px; }
+}
+
+@keyframes auth-mark-glow {
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in oklab, var(--apex-orange) 16%, transparent), 0 0 22px -12px color-mix(in oklab, var(--apex-orange) 38%, transparent); }
+  50% { box-shadow: 0 0 0 1px color-mix(in oklab, var(--apex-orange) 28%, transparent), 0 0 32px -10px color-mix(in oklab, var(--apex-orange) 48%, transparent); }
+}
+
+@keyframes auth-brand-shine {
+  0%, 100% { text-shadow: 0 0 18px color-mix(in oklab, var(--apex-orange) 14%, transparent); }
+  50% { text-shadow: 0 0 26px color-mix(in oklab, var(--apex-orange) 26%, transparent); }
+}
+
+@layer utilities {
+  .auth-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      110deg,
+      transparent 20%,
+      color-mix(in oklab, var(--apex-orange) 5%, transparent) 45%,
+      transparent 70%
+    );
+    background-size: 200% 100%;
+    animation: auth-shimmer 7s linear infinite;
+  }
+  .auth-shimmer > * {
+    position: relative;
+    z-index: 1;
+  }
+  .auth-orb-a { animation: auth-orb-a 13s ease-in-out infinite; }
+  .auth-orb-b { animation: auth-orb-b 17s ease-in-out infinite; }
+  .auth-orb-c { animation: auth-orb-c 15s ease-in-out infinite; }
+  .auth-grid-shift { animation: auth-grid-shift 24s linear infinite; }
+  .auth-mark-glow { animation: auth-mark-glow 4s ease-in-out infinite; }
+  .auth-brand-shine { animation: auth-brand-shine 4.5s ease-in-out infinite; }
+  .auth-rise { animation: auth-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .auth-delay-1 { animation-delay: 0.12s; }
+  .auth-delay-2 { animation-delay: 0.24s; }
+  .auth-delay-3 { animation-delay: 0.36s; }
+}
+
+/* Field styling for dark auth forms — pairs with the warm/cool panels. */
+.auth-field {
+  border-color: color-mix(in oklab, white 12%, transparent);
+  background: color-mix(in oklab, var(--apex-navy-deep) 60%, transparent);
+  color: #fff;
+}
+.auth-field::placeholder {
+  color: color-mix(in oklab, white 34%, transparent);
+}
+.auth-field:focus-visible {
+  border-color: color-mix(in oklab, var(--apex-orange) 45%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--apex-orange) 16%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-orb-a,
+  .auth-orb-b,
+  .auth-orb-c,
+  .auth-grid-shift,
+  .auth-mark-glow,
+  .auth-brand-shine,
+  .auth-shimmer::after {
+    animation: none;
+  }
+}

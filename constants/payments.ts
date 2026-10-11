@@ -30,7 +30,7 @@ export const PAYMENT_CHANNEL_META: Record<
     hint: `Transfer via Telebirr to Apex Solution CBE account ${APEX_SOLUTION_CBE_ACCOUNT}, then enter the Telebirr transaction number.`,
   },
   "Commercial Bank of Ethiopia": {
-    shortLabel: "Commercial Bank of Ethiopia (CBE)",
+    shortLabel: "Commercial Bank of Ethiopia",
     transactionFieldLabel: "CBE transaction ID",
     transactionPlaceholder: "e.g. FT25234… from your bank slip or app",
     hint: `Deposit to Apex Solution CBE account ${APEX_SOLUTION_CBE_ACCOUNT}, then enter the CBE transaction ID.`,

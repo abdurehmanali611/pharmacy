@@ -82,6 +82,10 @@ type BaseProps<T extends FieldValues> = {
   disabled?: boolean;
   options?: SelectOption[];
   className?: string; // Prop enabled for custom styling
+  labelClassName?: string; // Label-only styling (e.g. warm/cool panel labels)
+  inputClassName?: string; // Input-only styling (e.g. dark auth fields)
+  radioOrientation?: "vertical" | "horizontal"; // Layout for RADIO_BUTTON options
+  showOptionDescription?: boolean; // Toggle RADIO_BUTTON option descriptions
   accept?: string;
   addPlaceholder?: string;
   renderSkeleton?: (field: {
@@ -259,6 +263,10 @@ const CustomFormField = <T extends FieldValues>(
     disabled,
     options = [],
     className,
+    labelClassName,
+    inputClassName,
+    radioOrientation = "vertical",
+    showOptionDescription = true,
     accept,
     addPlaceholder,
     renderSkeleton,
@@ -280,7 +288,10 @@ const CustomFormField = <T extends FieldValues>(
         return (
           <Field className={cn("min-w-0 flex-col gap-1.5", className)} data-invalid={hasError || undefined}>
             {label ? (
-              <FieldLabel className="text-sm font-medium text-white/80" htmlFor={String(name)}>
+              <FieldLabel
+                className={cn("text-sm font-medium text-white/80", labelClassName)}
+                htmlFor={String(name)}
+              >
                 {label}
               </FieldLabel>
             ) : null}
@@ -303,7 +314,7 @@ const CustomFormField = <T extends FieldValues>(
                     field.onChange(event);
                   }}
                   name={field.name}
-                  className={className}
+                  className={cn(className, inputClassName)}
                 />
               ) : null}
 
@@ -415,13 +426,20 @@ const CustomFormField = <T extends FieldValues>(
                 <RadioGroup
                   value={(field.value as string) ?? ""}
                   onValueChange={field.onChange}
-                  className="gap-3"
+                  className={cn(
+                    radioOrientation === "horizontal"
+                      ? "grid-flow-col auto-cols-fr gap-3"
+                      : "gap-3",
+                  )}
                 >
                   {options.map((option) => (
                     <Field
                       key={option.value}
                       orientation="horizontal"
-                      className="rounded-2xl border border-white/10 bg-white/6 p-4"
+                      className={cn(
+                        "rounded-2xl border border-white/10 bg-white/6",
+                        radioOrientation === "horizontal" ? "p-3" : "p-4",
+                      )}
                     >
                       <RadioGroupItem
                         id={`${String(name)}-${option.value}`}
@@ -434,7 +452,7 @@ const CustomFormField = <T extends FieldValues>(
                         >
                           {option.label}
                         </FieldLabel>
-                        {option.description ? (
+                        {showOptionDescription && option.description ? (
                           <FieldDescription>
                             {option.description}
                           </FieldDescription>

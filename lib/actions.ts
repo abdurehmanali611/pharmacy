@@ -33,6 +33,28 @@ const api = axios.create({
 const AUTH_TOKEN_KEY = "authToken"
 const API_DEBUG_ENABLED = process.env.NEXT_PUBLIC_DEBUG_API === "true";
 
+type FieldErrors = Record<string, string | string[]>;
+
+/**
+ * Django REST returns validation failures as field-keyed maps, e.g.
+ * `{ "payment_transaction_ref": ["Transfer ID must be at least 4 characters."] }`.
+ * Without this, those responses fell back to a generic "Failed…" message.
+ */
+function extractFieldErrors(data: unknown): string[] {
+  if (!data || typeof data !== "object") return [];
+
+  return Object.entries(data as FieldErrors).flatMap(([field, value]) => {
+    const messages = Array.isArray(value) ? value : [value];
+    return messages
+      .filter((message): message is string => typeof message === "string")
+      .map((message) =>
+        field === "non_field_errors" || field === "detail"
+          ? message
+          : `${field.replace(/_/g, " ")}: ${message}`,
+      );
+  });
+}
+
 function getApiErrorMessage(error: unknown, fallback: string) {
   if (!axios.isAxiosError(error)) {
     return fallback;
@@ -49,6 +71,10 @@ function getApiErrorMessage(error: unknown, fallback: string) {
         : undefined;
 
   if (detail) return detail;
+
+  const fieldErrors = extractFieldErrors(data);
+  if (fieldErrors.length) return fieldErrors.join("\n");
+
   if (typeof axiosError.message === "string" && axiosError.message) return axiosError.message;
   return fallback;
 }
@@ -314,14 +340,20 @@ export interface updateCashout extends createCashout {
   id: string;
 }
 
-export async function UserCreation(data: createUser, setLoading: (loading: boolean) => void) {
+export async function UserCreation(
+  data: createUser,
+  setLoading: (loading: boolean) => void,
+  onError?: (messages: string[]) => void,
+) {
   try {
     setLoading(true);
     const response = await api.post("/user/", data);
     toast.success("Registration submitted. Waiting for Apex payment approval.");
     return response.data;
-  } catch (error: any) {
-    toast.error(getApiErrorMessage(error, "Failed to create user"));
+  } catch (error: unknown) {
+    const message = getApiErrorMessage(error, "Failed to create user");
+    onError?.(message.split("\n").filter(Boolean));
+    toast.error(message);
     return null;
   } finally {
     setLoading(false);
@@ -376,7 +408,12 @@ export async function deleteUser(id: number, setLoading: (loading: boolean) => v
   }
 }
 
-export async function Login(data: {username: string, password: string}, setLoading: (loading: boolean) => void, router: AppRouterInstance) {
+export async function Login(
+  data: { username: string; password: string },
+  setLoading: (loading: boolean) => void,
+  router: AppRouterInstance,
+  onError?: (message: string) => void,
+) {
   try {
     setLoading(true);
     const response = await api.post("/auth/login/", data);
@@ -414,9 +451,11 @@ export async function Login(data: {username: string, password: string}, setLoadi
     }
 
     return response.data;
-  } catch (error: any) {
-    toast.error(getApiErrorMessage(error, "Login failed"));
-  }finally {
+  } catch (error: unknown) {
+    const message = getApiErrorMessage(error, "Login failed");
+    onError?.(message);
+    toast.error(message);
+  } finally {
     setLoading(false);
   }
 }
