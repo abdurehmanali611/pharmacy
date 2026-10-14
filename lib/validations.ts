@@ -40,6 +40,8 @@ export const login = z.object({
     password: z.string().min(2, "Please Enter registered password")
 })
 
+
+
 export const addMedicine = z.object({
     name: z.string().min(2, "Please Enter Valid medicine name"),
     category: z.string().min(1, "Please select a category"),
@@ -52,7 +54,8 @@ export const addMedicine = z.object({
       .optional()
       .nullable(),
     description: z.string().min(2, "Please Enter Valid description"),
-    supplier_id: z.string().min(1, "Please Select a supplier")
+    supplier_id: z.string().min(1, "Please Select a supplier"),
+    image_url: z.string().url("Please upload a valid image").optional().or(z.literal("")),
 })
 
 export const purchase = z.object({
@@ -89,6 +92,17 @@ export const changePasswordWithConfirm = z
     path: ["confirm_new_password"],
   })
 
+export const pharmacistCredential = z
+  .object({
+    username: z.string().min(2, "Please enter registered username"),
+    password: z.string().min(2, "Please enter password"),
+    confirm_password: z.string().min(2, "Please repeat password"),
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    message: "Passwords do not match",
+    path: ["confirm_password"],
+  })
+
 export const addSupplier = z.object({
   supplier_name: z.string().min(2, "Please Enter a supplier name"),
   supplier_phone: z.string().min(2, "Please Enter Valid phone number"),
@@ -102,7 +116,7 @@ export const addInvoice = z.object({
   invoice_amount: z.number().positive("Please Enter a valid invoice amount"),
   invoice_status: z.enum(["paid", "unpaid"], {message: "Please Select valid invoice status"}),
   invoice_type: z.enum(["purchase", "sale"], {message: "Please Select valid invoice type"}),
-  invoice_payment_method: z.enum(["Cash", "Bank", "Credit"], {message: "Please Select valid invoice payment method"}),
+  invoice_payment_method: z.enum(["Cash", "Bank", "Credit", "Telebirr"], {message: "Please Select valid invoice payment method"}),
   invoice_image: z.string().url("Please Enter a valid invoice image URL").optional().or(z.literal("")),
 })
 

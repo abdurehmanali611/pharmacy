@@ -53,7 +53,7 @@ export default function LoginPage() {
   };
 
   return (
-    <AuthShell>
+    <AuthShell scrollMode="disabled">
       <Card className={cn("gap-0 py-0", AUTH_CARD_CLASS)}>
         <CardHeader className={cn("space-y-1.5 px-8 pt-6 pb-2 text-center", AUTH_BAND)}>
           <p className={AUTH_EYEBROW}>Staff access</p>

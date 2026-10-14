@@ -286,7 +286,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <AuthShell>
+    <AuthShell scrollMode="hidden">
       {receipt ? (
         <SignupPendingApprovalScreen
           username={receipt.username}

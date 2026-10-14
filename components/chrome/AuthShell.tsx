@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 
 import { APEX, PRODUCT } from "@/constants/branding";
@@ -92,13 +92,37 @@ export function AuthShell({
   children,
   className,
   compact = false,
+  scrollMode = "auto",
 }: {
   children?: ReactNode;
   className?: string;
   compact?: boolean;
+  scrollMode?: "auto" | "disabled" | "hidden";
 }) {
+  const authTheme = {
+    "--apex-navy": "#0b192e",
+    "--apex-navy-deep": "#060e1a",
+    "--apex-orange": "#e8951e",
+    "--apex-orange-light": "#f5b042",
+    "--background": "oklch(0.14 0.04 250)",
+    "--card": "oklch(0.17 0.04 250)",
+    "--popover": "oklch(0.16 0.04 250)",
+    "--secondary": "oklch(0.22 0.04 250)",
+    "--muted": "oklch(0.21 0.035 250)",
+    "--accent": "oklch(0.28 0.06 250)",
+    "--sidebar": "oklch(0.15 0.04 250)",
+    "--sidebar-accent": "oklch(0.22 0.04 250)",
+  } as CSSProperties & { [key: `--${string}`]: string };
+
   return (
-    <div className="dark min-h-dvh text-foreground lg:grid lg:h-dvh lg:grid-cols-[minmax(300px,38%)_1fr] lg:items-center lg:overflow-hidden">
+    <div
+      data-auth-scroll-mode={scrollMode}
+      style={authTheme}
+      className={cn(
+        "dark auth-shell flex flex-col text-foreground lg:grid lg:h-dvh lg:grid-cols-[minmax(300px,38%)_1fr] lg:items-center lg:overflow-hidden",
+        scrollMode === "auto" ? "min-h-dvh" : "h-dvh overflow-hidden",
+      )}
+    >
       <aside className="relative hidden overflow-hidden bg-[linear-gradient(160deg,#0b192e_0%,#081326_45%,#060e1a_100%)] lg:flex lg:h-dvh lg:flex-col lg:justify-between lg:px-12 lg:py-14">
         <div
           aria-hidden
@@ -160,8 +184,12 @@ export function AuthShell({
 
       <div
         className={cn(
-          "relative flex flex-col items-center justify-center overflow-hidden bg-[linear-gradient(160deg,#081326_0%,#060e1a_55%,#040a12_100%)] px-4",
-          compact ? "h-dvh" : "min-h-dvh lg:h-dvh",
+          "relative flex min-h-0 flex-col items-center justify-center overflow-hidden bg-[linear-gradient(160deg,#081326_0%,#060e1a_55%,#040a12_100%)] px-4",
+          scrollMode === "auto"
+            ? compact
+              ? "h-dvh"
+              : "min-h-dvh lg:h-dvh"
+            : "flex-1 lg:h-dvh",
         )}
       >
         <div
@@ -175,9 +203,10 @@ export function AuthShell({
 
         <div
           className={cn(
-            "relative z-10 flex min-h-0 w-full flex-1 flex-col items-center overflow-y-auto overscroll-contain",
+            "relative z-10 flex min-h-0 w-full flex-1 flex-col items-center overscroll-contain",
+            scrollMode === "disabled" ? "overflow-hidden" : "overflow-y-auto",
+            scrollMode === "hidden" && "no-scrollbar",
             compact ? "px-1 py-4" : "px-1 py-8 lg:py-10",
-            "lg:[scrollbar-width:thin]",
             className,
           )}
         >

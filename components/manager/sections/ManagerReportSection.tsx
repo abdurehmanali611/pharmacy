@@ -6,6 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DollarSign, Package, TrendingUp, Wallet } from "lucide-react";
 
 import { DateFilterPicker } from "@/components/manager/DateFilterPicker";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { LinkedNamesCell } from "@/components/manager/LinkedNamesCell";
 import { ManagerAnalyticsCharts } from "@/components/manager/ManagerAnalyticsCharts";
 import { ManagerCommandStrip } from "@/components/manager/ManagerCommandStrip";
@@ -169,64 +170,120 @@ const purchaseColumns: ColumnDef<PurchaseData>[] = [
   },
 ];
 
+type ReportPeriod = "daily" | "monthly" | "quarterly" | "half-year" | "annually";
+
 function matchesReportPeriod(
   createdAt: string,
-  reportMode: "daily" | "monthly",
+  reportMode: ReportPeriod,
   reportDay: string,
   reportMonth: string,
+  reportYear: string,
+  reportQuarter: string,
+  reportHalf: string,
 ) {
   const date = new Date(createdAt);
   if (Number.isNaN(date.getTime())) return false;
-  return reportMode === "daily"
-    ? date.toISOString().slice(0, 10) === reportDay
-    : date.toISOString().slice(0, 7) === reportMonth;
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  switch (reportMode) {
+    case "daily":
+      return date.toISOString().slice(0, 10) === reportDay;
+    case "monthly":
+      return date.toISOString().slice(0, 7) === reportMonth;
+    case "quarterly":
+      return String(year) === reportYear && String(Math.ceil(month / 3)) === reportQuarter;
+    case "half-year":
+      return String(year) === reportYear && String(month <= 6 ? 1 : 2) === reportHalf;
+    case "annually":
+      return String(year) === reportYear;
+  }
 }
 
 function ReportPeriodFilter({
   reportMode,
   reportDay,
   reportMonth,
+  reportYear,
+  reportQuarter,
+  reportHalf,
+  yearOptions,
   onModeChange,
   onDayChange,
   onMonthChange,
+  onYearChange,
+  onQuarterChange,
+  onHalfChange,
 }: {
-  reportMode: "daily" | "monthly";
+  reportMode: ReportPeriod;
   reportDay: string;
   reportMonth: string;
-  onModeChange: (mode: "daily" | "monthly") => void;
+  reportYear: string;
+  reportQuarter: string;
+  reportHalf: string;
+  yearOptions: ComboboxOption[];
+  onModeChange: (mode: ReportPeriod) => void;
   onDayChange: (value: string) => void;
   onMonthChange: (value: string) => void;
+  onYearChange: (value: string) => void;
+  onQuarterChange: (value: string) => void;
+  onHalfChange: (value: string) => void;
 }) {
+  const periodOptions: ComboboxOption[] = [
+    { value: "daily", label: "Daily" },
+    { value: "monthly", label: "Monthly" },
+    { value: "quarterly", label: "Quarterly" },
+    { value: "half-year", label: "Half-year" },
+    { value: "annually", label: "Annually" },
+  ];
+
+  const subdivisionOptions: ComboboxOption[] =
+    reportMode === "quarterly"
+      ? [1, 2, 3, 4].map((quarter) => ({ value: String(quarter), label: `Quarter ${quarter}` }))
+      : [
+          { value: "1", label: "First half (Jan–Jun)" },
+          { value: "2", label: "Second half (Jul–Dec)" },
+        ];
+
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button
-        type="button"
-        size="sm"
-        variant={reportMode === "daily" ? "default" : "outline"}
-        className={cn(reportMode !== "daily" && "border-white/14 bg-white/6 text-white/75")}
-        onClick={() => onModeChange("daily")}
-      >
-        Daily
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant={reportMode === "monthly" ? "default" : "outline"}
-        className={cn(reportMode !== "monthly" && "border-white/14 bg-white/6 text-white/75")}
-        onClick={() => onModeChange("monthly")}
-      >
-        Monthly
-      </Button>
       {reportMode === "daily" ? (
         <DateFilterPicker value={reportDay} onChange={onDayChange} placeholder="Pick a day" />
-      ) : (
+      ) : reportMode === "monthly" ? (
         <DateFilterPicker
           value={reportMonth}
           onChange={onMonthChange}
           placeholder="Pick a month"
           granularity="month"
         />
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          {reportMode !== "annually" ? (
+            <Combobox
+              value={reportMode === "quarterly" ? reportQuarter : reportHalf}
+              onChange={reportMode === "quarterly" ? onQuarterChange : onHalfChange}
+              options={subdivisionOptions}
+              placeholder={reportMode === "quarterly" ? "Choose quarter" : "Choose half"}
+              className="min-w-48 border-white/10 bg-white/[0.035] text-white"
+            />
+          ) : null}
+          <Combobox
+            value={reportYear}
+            onChange={onYearChange}
+            options={yearOptions}
+            placeholder="Choose year"
+            searchPlaceholder="Search years..."
+            className="w-36 border-white/10 bg-white/[0.035] text-white"
+          />
+        </div>
       )}
+      <Combobox
+        value={reportMode}
+        onChange={(value) => onModeChange(value as ReportPeriod)}
+        options={periodOptions}
+        placeholder="Choose period"
+        searchPlaceholder="Search periods..."
+        className="w-44 border-white/10 bg-white/[0.035] text-white"
+      />
     </div>
   );
 }
@@ -264,21 +321,35 @@ export function ManagerReportSection({
   };
 
   const [activeTab, setActiveTab] = useState<ReportSectionKey>("overview");
-  const [reportMode, setReportMode] = useState<"daily" | "monthly">("daily");
+  const [reportMode, setReportMode] = useState<ReportPeriod>("daily");
   const [reportDay, setReportDay] = useState(() => new Date().toISOString().slice(0, 10));
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [reportYear, setReportYear] = useState(() => String(new Date().getFullYear()));
+  const [reportQuarter, setReportQuarter] = useState(() => String(Math.ceil((new Date().getMonth() + 1) / 3)));
+  const [reportHalf, setReportHalf] = useState(() => (new Date().getMonth() < 6 ? "1" : "2"));
+
+  const yearOptions = useMemo(() => {
+    const years = new Set([new Date().getFullYear()]);
+    for (const item of [...purchases, ...cashouts]) {
+      const year = new Date(item.created_at).getUTCFullYear();
+      if (Number.isFinite(year)) years.add(year);
+    }
+    return [...years]
+      .sort((a, b) => b - a)
+      .map((year) => ({ value: String(year), label: String(year) }));
+  }, [cashouts, purchases]);
 
   const filteredPurchases = useMemo(() => {
     return purchases.filter((item) =>
-      matchesReportPeriod(item.created_at, reportMode, reportDay, reportMonth),
+      matchesReportPeriod(item.created_at, reportMode, reportDay, reportMonth, reportYear, reportQuarter, reportHalf),
     );
-  }, [purchases, reportDay, reportMode, reportMonth]);
+  }, [purchases, reportDay, reportHalf, reportMode, reportMonth, reportQuarter, reportYear]);
 
   const filteredCashouts = useMemo(() => {
     return cashouts.filter((item) =>
-      matchesReportPeriod(item.created_at, reportMode, reportDay, reportMonth),
+      matchesReportPeriod(item.created_at, reportMode, reportDay, reportMonth, reportYear, reportQuarter, reportHalf),
     );
-  }, [cashouts, reportDay, reportMode, reportMonth]);
+  }, [cashouts, reportDay, reportHalf, reportMode, reportMonth, reportQuarter, reportYear]);
 
   const overview = useMemo(() => {
     const totalSales = filteredPurchases.reduce((sum, item) => sum + Number(item.total_price), 0);
@@ -354,9 +425,16 @@ export function ManagerReportSection({
                 reportMode={reportMode}
                 reportDay={reportDay}
                 reportMonth={reportMonth}
+                reportYear={reportYear}
+                reportQuarter={reportQuarter}
+                reportHalf={reportHalf}
+                yearOptions={yearOptions}
                 onModeChange={setReportMode}
                 onDayChange={setReportDay}
                 onMonthChange={setReportMonth}
+                onYearChange={setReportYear}
+                onQuarterChange={setReportQuarter}
+                onHalfChange={setReportHalf}
               />
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -424,9 +502,16 @@ export function ManagerReportSection({
                 reportMode={reportMode}
                 reportDay={reportDay}
                 reportMonth={reportMonth}
+                reportYear={reportYear}
+                reportQuarter={reportQuarter}
+                reportHalf={reportHalf}
+                yearOptions={yearOptions}
                 onModeChange={setReportMode}
                 onDayChange={setReportDay}
                 onMonthChange={setReportMonth}
+                onYearChange={setReportYear}
+                onQuarterChange={setReportQuarter}
+                onHalfChange={setReportHalf}
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 <WorkspaceStat label="Cashout entries" value={String(filteredCashouts.length)} />

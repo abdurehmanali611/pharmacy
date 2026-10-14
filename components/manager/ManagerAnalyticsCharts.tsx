@@ -26,13 +26,13 @@ function InventoryHealthBars({ rows }: { rows: StockHealthRow[] }) {
         <div
           key={row.name}
           title={`${row.name}: ${row.count} ${row.count === 1 ? "medicine" : "medicines"}`}
-          className="group grid grid-cols-[4.75rem_minmax(0,1fr)_2.25rem] items-center gap-3 rounded-xl border border-transparent px-2.5 py-2 transition-colors hover:border-white/10 hover:bg-white/6"
+          className="group grid grid-cols-[4.75rem_minmax(0,1fr)_2.25rem] items-center gap-3 rounded-xl border border-transparent px-2.5 py-2 transition-colors hover:border-white/12 hover:bg-white/[0.045]"
         >
-          <span className="text-[0.68rem] font-semibold leading-none text-white/55 group-hover:text-white/85">
+          <span className="text-[0.68rem] font-semibold leading-none text-white/65 group-hover:text-white/90">
             {row.name}
           </span>
 
-          <div className="h-3 overflow-hidden rounded-full bg-white/8">
+          <div className="h-3 overflow-hidden rounded-full bg-white/10">
             <div
               className="h-full rounded-full transition-[width] duration-300 group-hover:brightness-110"
               style={{
@@ -117,8 +117,8 @@ export function ManagerAnalyticsCharts({
       <WorkspaceInnerPanel className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-white/45">Revenue pulse</p>
-            <p className="mt-0.5 text-sm text-white/55">Sales & profit for selected period</p>
+            <p className="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-300/70">Revenue pulse</p>
+            <p className="mt-0.5 text-sm text-white/65">Sales & profit for selected period</p>
           </div>
         </div>
         <div className="h-[220px] w-full">
@@ -169,8 +169,8 @@ export function ManagerAnalyticsCharts({
       </WorkspaceInnerPanel>
 
       <WorkspaceInnerPanel className="p-4">
-        <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-white/45">Inventory health</p>
-        <p className="mt-0.5 text-sm text-white/55">Stock & expiry distribution</p>
+        <p className="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-300/70">Inventory health</p>
+        <p className="mt-0.5 text-sm text-white/65">Stock & expiry distribution</p>
         <div className="mt-3 h-[220px] w-full">
           {stockHealth.length ? (
             <InventoryHealthBars rows={stockHealth} />

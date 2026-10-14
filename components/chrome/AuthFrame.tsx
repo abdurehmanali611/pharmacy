@@ -44,8 +44,8 @@ export function AuthFrame({
           <AuthShowcase sideLabel={sideLabel} sideTitle={sideTitle} sideCopy={sideCopy} />
 
           <section className="flex items-center justify-center lg:justify-end">
-            <div className="gradient-border-apex w-full max-w-xl overflow-hidden rounded-[2rem] shadow-[0_40px_120px_-50px_rgba(0,0,0,0.95)]">
-              <div className="rounded-[calc(2rem-1px)] bg-[linear-gradient(180deg,rgba(11,25,46,0.98),rgba(6,14,26,0.98))] p-6 lg:p-8">
+            <div className="gradient-border-apex w-full max-w-xl overflow-hidden rounded-[2rem] shadow-[0_32px_90px_-46px_rgba(0,0,0,0.82)]">
+              <div className="rounded-[calc(2rem-1px)] bg-[linear-gradient(145deg,rgba(25,48,76,0.98),rgba(13,29,49,0.99))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] lg:p-8">
                 <div className="mb-8 space-y-3">
                   <Badge
                     variant="outline"

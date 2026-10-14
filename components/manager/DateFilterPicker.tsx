@@ -41,7 +41,10 @@ export function DateFilterPicker({
             <CalendarIcon className="h-4 w-4 text-muted-foreground" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent
+          className="w-auto rounded-none border-0 bg-none p-0 shadow-none ring-0"
+          align="start"
+        >
           <Calendar
             mode="single"
             selected={selectedDate}

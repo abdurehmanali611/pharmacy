@@ -34,41 +34,41 @@ export function ManagerCommandStrip({
       icon: Package,
       label: "Critical stock",
       value: String(critical),
-      tone: critical > 0 ? "text-red-300" : "text-emerald-300",
-      border: critical > 0 ? "border-red-400/30" : "border-white/12",
-      bg: critical > 0 ? "bg-red-500/10" : "bg-white/4",
+      tone: critical > 0 ? "text-red-200" : "text-emerald-200",
+      border: critical > 0 ? "border-red-300/25" : "border-white/10",
+      bg: critical > 0 ? "bg-red-400/[0.08]" : "bg-white/[0.035]",
     },
     {
       icon: AlertTriangle,
       label: "Expiring soon",
       value: String(expiring),
-      tone: expiring > 0 ? "text-amber-200" : "text-white/70",
-      border: expiring > 0 ? "border-amber-400/30" : "border-white/12",
-      bg: expiring > 0 ? "bg-amber-500/10" : "bg-white/4",
+      tone: expiring > 0 ? "text-amber-100" : "text-white/75",
+      border: expiring > 0 ? "border-amber-300/25" : "border-white/10",
+      bg: expiring > 0 ? "bg-amber-400/[0.08]" : "bg-white/[0.035]",
     },
     {
       icon: AlertTriangle,
       label: "Expired",
       value: String(expired),
-      tone: expired > 0 ? "text-red-200" : "text-white/70",
-      border: expired > 0 ? "border-red-400/25" : "border-white/12",
-      bg: expired > 0 ? "bg-red-500/8" : "bg-white/4",
+      tone: expired > 0 ? "text-red-200" : "text-white/75",
+      border: expired > 0 ? "border-red-300/20" : "border-white/10",
+      bg: expired > 0 ? "bg-red-400/[0.06]" : "bg-white/[0.035]",
     },
     {
       icon: ReceiptText,
       label: "Unpaid invoices",
       value: String(unpaidInvoices.length),
-      tone: unpaidInvoices.length > 0 ? "text-apex-orange-light" : "text-white/70",
-      border: "border-white/12",
-      bg: "bg-white/4",
+      tone: unpaidInvoices.length > 0 ? "text-apex-orange-light" : "text-white/75",
+      border: "border-white/10",
+      bg: "bg-white/[0.035]",
     },
     {
       icon: Wallet,
       label: "Total SKUs",
       value: String(medicines.length),
       tone: "text-white",
-      border: "border-white/12",
-      bg: "bg-white/4",
+      border: "border-white/10",
+      bg: "bg-white/[0.035]",
     },
   ];
 
@@ -81,7 +81,7 @@ export function ManagerCommandStrip({
         >
           <div className="flex items-center gap-2">
             <item.icon className={cn("h-3.5 w-3.5 shrink-0", item.tone)} />
-            <p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-white/45">{item.label}</p>
+            <p className="text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-300/80">{item.label}</p>
           </div>
           <p className={cn("mt-2 font-display text-xl font-bold", item.tone)}>{item.value}</p>
         </WorkspaceInnerPanel>

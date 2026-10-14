@@ -73,12 +73,12 @@ export function ReportDataTable<TData, TValue>({
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-sm flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-apex-orange-light/70" />
           <Input
             placeholder="Search records..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="h-10 border-white/12 bg-[#060e1a]/80 pl-9 text-white placeholder:text-white/35"
+            className="h-10 border-white/10 bg-white/[0.035] pl-9 text-white placeholder:text-white/50 focus-visible:border-apex-orange/40 focus-visible:ring-apex-orange/20"
           />
         </div>
         <DropdownMenu>
@@ -86,7 +86,7 @@ export function ReportDataTable<TData, TValue>({
             <Button
               variant="outline"
               size="sm"
-              className="ml-auto flex h-10 items-center gap-2 border-white/12 bg-white/5 text-white/75"
+              className="ml-auto flex h-10 items-center gap-2 border-white/12 bg-white/[0.045] text-white/85 hover:bg-white/[0.08]"
             >
               <Settings2 className="h-4 w-4" />
               Columns
@@ -116,7 +116,7 @@ export function ReportDataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-white/10 hover:bg-transparent">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-white/45">
+                  <TableHead key={header.id} className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-white/60">
                     {!header.isPlaceholder && flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
@@ -126,9 +126,9 @@ export function ReportDataTable<TData, TValue>({
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="border-white/8 hover:bg-white/4">
+                <TableRow key={row.id} className="border-white/8 hover:bg-white/[0.045]">
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-3 text-sm text-white/75">
+                    <TableCell key={cell.id} className="py-3 text-sm text-white/85">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -136,8 +136,20 @@ export function ReportDataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-white/40">
-                  No records found.
+                <TableCell colSpan={columns.length} className="h-32 text-center">
+                  <div className="mx-auto flex max-w-xs flex-col items-center gap-2">
+                    <div className="flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/35">
+                      <Search className="size-4" />
+                    </div>
+                    <span className="font-medium text-white/75">
+                      {search && searchColumnId ? "No matching records" : "No records yet"}
+                    </span>
+                    <span className="text-xs text-white/45">
+                      {search && searchColumnId
+                        ? "Try adjusting your search."
+                        : "Records will appear here when available."}
+                    </span>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -145,25 +157,39 @@ export function ReportDataTable<TData, TValue>({
         </Table>
       </div>
 
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-white/12 bg-white/5 text-white/75"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          <ChevronLeft className="h-4 w-4" /> Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-white/12 bg-white/5 text-white/75"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next <ChevronRight className="h-4 w-4" />
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2">
+        <p className="text-xs text-white/55">
+          Showing{" "}
+          <span className="font-medium tabular-nums text-white/80">
+            {table.getRowModel().rows.length
+              ? `${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}–${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + table.getRowModel().rows.length}`
+              : "0"}
+          </span>{" "}
+          of <span className="font-medium tabular-nums text-white/80">{table.getFilteredRowModel().rows.length}</span> records
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="min-w-16 text-center text-xs font-medium tabular-nums text-white/55">
+            {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/12 bg-white/[0.045] text-white/85 hover:bg-white/[0.08]"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <ChevronLeft className="h-4 w-4" /> Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/12 bg-white/[0.045] text-white/85 hover:bg-white/[0.08]"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

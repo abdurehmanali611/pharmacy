@@ -23,21 +23,20 @@ const REPORT_TABS: ReportTab[] = [
 
 /** Kills the default shadcn tabs-trigger ::after underline that cuts through tab content */
 const triggerBase = cn(
-  "group/tab !h-auto !min-h-[3.25rem] !flex-none rounded-xl border border-transparent px-3 py-2.5 sm:px-4",
+  "group/tab !h-auto !min-h-[3.25rem] !w-full !min-w-0 !flex-none rounded-xl border border-transparent px-3 py-2.5 sm:px-4",
   "!flex-none whitespace-normal",
   "!justify-start !items-center text-left",
-  "text-white/55 transition-all duration-200",
-  "hover:border-white/10 hover:bg-white/6 hover:text-white/90",
+  "text-slate-200/80 transition-all duration-200",
+  "hover:border-apex-orange/15 hover:bg-apex-orange/[0.07] hover:text-white",
   "after:!hidden after:!content-none data-[state=active]:after:!hidden",
-  "data-active:!border-apex-orange/40 data-[state=active]:!border-apex-orange/40",
-  "data-active:!bg-[linear-gradient(180deg,rgba(232,149,30,0.2),rgba(232,149,30,0.06))] data-[state=active]:!bg-[linear-gradient(180deg,rgba(232,149,30,0.2),rgba(232,149,30,0.06))]",
-  "data-active:!text-white data-[state=active]:!text-white",
-  "data-active:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_-12px_rgba(232,149,30,0.35)]",
+  "data-active:!border-apex-orange/35 data-[state=active]:!border-apex-orange/35",
+  "data-active:!bg-apex-orange/[0.14] data-[state=active]:!bg-apex-orange/[0.14]",
+  "data-active:!text-[#ffd89a] data-[state=active]:!text-[#ffd89a]",
+  "data-active:shadow-sm",
 );
 
 const tabsListClass = cn(
-  "mx-auto mb-6 inline-flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/14 p-2",
-  "bg-[#0a1628] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
+  "mb-6 grid w-full max-w-full grid-cols-2 items-stretch gap-2 rounded-2xl border border-apex-orange/12 bg-[#081422] p-2 shadow-[inset_0_1px_0_rgba(255,214,160,0.06),0_14px_32px_-26px_rgba(0,0,0,0.9)] sm:grid-cols-3 lg:grid-cols-5",
   "!h-auto group-data-horizontal/tabs:!h-auto",
 );
 
@@ -51,18 +50,18 @@ export function ReportTabsNav({ counts }: { counts?: Partial<Record<ReportSectio
             <span className="flex items-center gap-2.5">
               <span
                 className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#060e1a]",
-                  "group-data-[state=active]/tab:border-apex-orange/35 group-data-[state=active]/tab:bg-apex-orange/15",
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-apex-orange/12 bg-[#12263f]",
+                  "group-data-[state=active]/tab:border-apex-orange/30 group-data-[state=active]/tab:bg-apex-orange/15",
                 )}
               >
-                <tab.icon className="h-4 w-4 text-white/50 group-data-[state=active]/tab:text-apex-orange-light" />
+                <tab.icon className="h-4 w-4 text-apex-orange-light/70 group-data-[state=active]/tab:text-apex-orange-light" />
               </span>
               <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
                 <span className="text-sm font-semibold leading-tight">{tab.label}</span>
                 <span
                   className={cn(
-                    "text-[0.6rem] font-bold uppercase tracking-[0.16em] leading-tight",
-                    "text-white/35 group-data-[state=active]/tab:text-apex-orange-light/80",
+                    "text-[0.6rem] font-semibold uppercase tracking-[0.12em] leading-tight",
+                    "text-slate-400 group-data-[state=active]/tab:text-apex-orange-light",
                   )}
                 >
                   {count !== undefined ? `${count} records` : "Intelligence"}

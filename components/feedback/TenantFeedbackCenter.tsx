@@ -22,12 +22,6 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   fetchTenantFeedbackInbox,
   sendTenantFeedbackMessage,
   type TenantFeedbackMessage,
@@ -240,32 +234,25 @@ export function TenantFeedbackCenter({ className }: { className?: string }) {
 
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange}>
-      <TooltipProvider delayDuration={200}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <SheetTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className={cn(
-                  "relative shrink-0 border-white/16 bg-white/6",
-                  className,
-                )}
-                aria-label="Chat with Apex"
-              >
-                <MessageCircle className="size-4" />
-                {unread > 0 ? (
-                  <Badge className="absolute -top-2 -right-3 h-4 min-w-4 px-1 text-[10px]">
-                    {unread > 9 ? "9+" : unread}
-                  </Badge>
-                ) : null}
-              </Button>
-            </SheetTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Chat with Apex</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <SheetTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            "relative shrink-0 border-white/16 bg-white/6",
+            className,
+          )}
+          aria-label="Chat with Apex"
+        >
+          <MessageCircle className="size-4" />
+          {unread > 0 ? (
+            <Badge className="absolute -top-2 -right-3 h-4 min-w-4 px-1 text-[10px]">
+              {unread > 9 ? "9+" : unread}
+            </Badge>
+          ) : null}
+        </Button>
+      </SheetTrigger>
 
       <SheetContent
         side="right"
@@ -351,7 +338,7 @@ export function TenantFeedbackCenter({ className }: { className?: string }) {
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Write a message…"
               rows={2}
-              className="min-h-[44px] resize-none"
+              className="min-h-11 resize-none"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();

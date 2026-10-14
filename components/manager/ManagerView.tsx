@@ -55,6 +55,7 @@ import {
   addSupplier,
   changePasswordWithConfirm,
   login,
+  pharmacistCredential,
 } from "@/lib/validations";
 
 export default function ManagerView() {
@@ -92,6 +93,7 @@ export default function ManagerView() {
       expiry_date: null,
       description: "",
       supplier_id: "",
+      image_url: "",
     }),
     [],
   );
@@ -142,11 +144,12 @@ export default function ManagerView() {
     },
   });
 
-  const credentialForm = useForm<z.infer<typeof login>>({
-    resolver: zodResolver(login),
+  const credentialForm = useForm<z.infer<typeof pharmacistCredential>>({
+    resolver: zodResolver(pharmacistCredential),
     defaultValues: {
       username: "",
       password: "",
+      confirm_password: "",
     },
   });
 
@@ -257,6 +260,7 @@ export default function ManagerView() {
       expiry_date: medicine.expiry_date ? parseISO(medicine.expiry_date) : null,
       description: medicine.description,
       supplier_id: medicine.selected_supplier_id ? String(medicine.selected_supplier_id) : "",
+      image_url: medicine.image_url ?? "",
     });
     setSelected("medicines");
   };
@@ -499,6 +503,7 @@ export default function ManagerView() {
             void loadMedicinesPage({ page: 1, createdDate: value });
           }}
           onSubmit={handleSaveMedicine}
+          onRefresh={loadAll}
           onCancelEdit={() => {
             setMedicineToEdit(null);
             medicineForm.reset(medicineFormDefaults);
@@ -519,6 +524,7 @@ export default function ManagerView() {
           medicines={allMedicines}
           invoices={invoices}
           onSubmit={handleSaveSupplier}
+          onRefresh={loadAll}
           onCancelEdit={() => {
             setSupplierToEdit(null);
             supplierForm.reset(supplierFormDefaults);
@@ -536,6 +542,7 @@ export default function ManagerView() {
           invoices={invoices}
           suppliers={suppliers}
           onSubmit={handleSaveInvoice}
+          onRefresh={loadAll}
           onCancelEdit={() => {
             setInvoiceToEdit(null);
             invoiceForm.reset(invoiceFormDefaults);
@@ -573,6 +580,7 @@ export default function ManagerView() {
           cashouts={cashouts}
           cashoutToEdit={cashoutToEdit}
           onSubmit={handleSaveCashout}
+          onRefresh={loadAll}
           onEdit={(cashout) => {
             setCashoutToEdit(cashout);
             cashoutForm.reset({

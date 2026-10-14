@@ -226,6 +226,7 @@ export interface MedicineData {
     batch_number: string;
     expiry_date?: string | null;
     description: string;
+    image_url?: string | null;
     supplier_phone?: string;
     supplier_email?: string;
     supplier_name: string;
@@ -241,6 +242,7 @@ export interface addMedicine {
     expiry_date?: string | Date | null;
     description: string;
     batch_number: string;
+    image_url?: string;
 }
 
 export interface updateMedicine extends addMedicine {
@@ -260,6 +262,7 @@ export interface PurchaseData {
 }
 
 export interface purchaseMedicine {
+    medicine_id?: number;
     medicine_name: string;
     quantity: number;
     price: number;
@@ -302,7 +305,7 @@ export interface InvoiceData {
   invoice_amount: number;
   invoice_status: "paid" | "unpaid";
   invoice_type: "purchase" | "sale";
-  invoice_payment_method: "Cash" | "Bank" | "Credit";
+  invoice_payment_method: "Cash" | "Bank" | "Credit" | "Telebirr";
   invoice_image?: string;
   created_at: string;
   updated_at: string;
@@ -323,7 +326,7 @@ export interface createInvoice {
   invoice_amount: number;
   invoice_status: "paid" | "unpaid";
   invoice_type: "purchase" | "sale";
-  invoice_payment_method: "Cash" | "Bank" | "Credit";
+  invoice_payment_method: "Cash" | "Bank" | "Credit" | "Telebirr";
   invoice_image?: string;
 }
 
@@ -485,6 +488,36 @@ export async function createMedicine(data: addMedicine, setLoading: (loading: bo
     return response.data;
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to create medicine"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function createBatchMedicines(
+  items: addMedicine[],
+  setLoading: (loading: boolean) => void,
+) {
+  if (!items.length) return [];
+  try {
+    setLoading(true);
+    const created: any[] = [];
+    for (const item of items) {
+      const payload = {
+        ...item,
+        supplier_id: Number(item.supplier_id),
+        expiry_date:
+          item.expiry_date instanceof Date
+            ? item.expiry_date.toISOString().slice(0, 10)
+            : (item.expiry_date ?? null),
+      };
+      const res = await api.post("/medicines/", payload);
+      created.push(res.data);
+    }
+    toast.success(`${created.length} medicine${created.length === 1 ? "" : "s"} added to inventory`);
+    return created;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to complete batch medicine creation"));
+    throw error;
   } finally {
     setLoading(false);
   }
@@ -674,6 +707,28 @@ export async function createSupplierRecord(data: createSupplier, setLoading: (lo
   }
 }
 
+export async function createBatchSuppliers(
+  items: createSupplier[],
+  setLoading: (loading: boolean) => void,
+) {
+  if (!items.length) return [];
+  try {
+    setLoading(true);
+    const created: any[] = [];
+    for (const item of items) {
+      const res = await api.post("/suppliers/", item);
+      created.push(res.data);
+    }
+    toast.success(`${created.length} vendor${created.length === 1 ? "" : "s"} added to directory`);
+    return created;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to complete batch supplier creation"));
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+}
+
 export async function fetchSuppliers() {
   try {
     const response = await api.get("/suppliers/", {
@@ -732,6 +787,36 @@ export async function createInvoiceRecord(data: createInvoice, setLoading: (load
   }
 }
 
+export async function createBatchInvoices(
+  items: createInvoice[],
+  setLoading: (loading: boolean) => void,
+) {
+  if (!items.length) return [];
+  try {
+    setLoading(true);
+    const created: any[] = [];
+    for (const item of items) {
+      const payload = {
+        ...item,
+        supplier_id: Number(item.supplier_id),
+        invoice_date:
+          item.invoice_date instanceof Date
+            ? item.invoice_date.toISOString().slice(0, 10)
+            : item.invoice_date,
+      };
+      const res = await api.post("/invoices/", payload);
+      created.push(res.data);
+    }
+    toast.success(`${created.length} invoice${created.length === 1 ? "" : "s"} recorded`);
+    return created;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to complete batch invoice creation"));
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+}
+
 export async function fetchInvoices() {
   try {
     const response = await api.get("/invoices/", {
@@ -785,6 +870,28 @@ export async function createCashoutRecord(data: createCashout, setLoading: (load
     return response.data;
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to create cashout"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function createBatchCashouts(
+  items: createCashout[],
+  setLoading: (loading: boolean) => void,
+) {
+  if (!items.length) return [];
+  try {
+    setLoading(true);
+    const created: any[] = [];
+    for (const item of items) {
+      const res = await api.post("/cashouts/", item);
+      created.push(res.data);
+    }
+    toast.success(`${created.length} expense line${created.length === 1 ? "" : "s"} recorded`);
+    return created;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to complete batch cashout creation"));
+    throw error;
   } finally {
     setLoading(false);
   }

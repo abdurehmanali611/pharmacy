@@ -5,7 +5,6 @@ import { LogOut } from "lucide-react";
 
 import { BillingAlerts } from "@/components/billing/BillingAlerts";
 import { TenantFeedbackCenter } from "@/components/feedback/TenantFeedbackCenter";
-import { ApexMark, ApexMarkIcon } from "@/components/chrome/ApexMark";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { PRODUCT } from "@/constants/branding";
 import { cn } from "@/lib/utils";
 
@@ -61,14 +60,14 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <TooltipProvider delayDuration={0}>
-      <SidebarProvider defaultOpen>
+      <SidebarProvider defaultOpen className="app-shell">
         <Sidebar
           collapsible="icon"
           variant="floating"
-          className="border-white/12 **:data-[sidebar=sidebar]:border-white/12 **:data-[sidebar=sidebar]:bg-[linear-gradient(180deg,rgba(11,25,46,0.98),rgba(6,14,26,0.99))] **:data-[sidebar=sidebar]:shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]"
+          className="border-apex-orange/15 **:data-[sidebar=sidebar]:border-apex-orange/12 **:data-[sidebar=sidebar]:bg-[linear-gradient(180deg,#0b192e_0%,#0a1628_52%,#060e1a_100%)] **:data-[sidebar=sidebar]:shadow-[0_22px_52px_-30px_rgba(0,0,0,0.78)]"
         >
           <SidebarHeader className="p-3">
-            <div className="flex items-center gap-3 rounded-2xl border border-white/14 bg-white/6 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
+            <div className="flex items-center gap-3 rounded-[1.1rem] border border-apex-orange/20 bg-[linear-gradient(135deg,#173049_0%,#12263f_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,214,160,0.1)] group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
               <Avatar className="h-11 w-11 shrink-0 ring-2 ring-apex-orange/30">
                 <AvatarImage src={logo || "/assets/pharmacy.jpg"} alt={pharmacy || "Pharmacy"} />
                 <AvatarFallback className="bg-apex-orange/12 text-apex-orange-light">
@@ -81,7 +80,7 @@ export function AppShell({
                 </p>
                 <Badge
                   variant="outline"
-                  className="mt-1.5 border-apex-orange/30 bg-apex-orange/10 px-2 py-0 text-[0.58rem] font-black uppercase tracking-[0.22em] text-apex-orange-light"
+                  className="mt-1.5 border-apex-orange/30 bg-apex-orange/10 px-2 py-0 text-[0.58rem] font-bold uppercase tracking-[0.12em] text-apex-orange-light"
                 >
                   {roleLabel}
                 </Badge>
@@ -93,7 +92,7 @@ export function AppShell({
 
           <SidebarContent className="px-2">
             <SidebarGroup>
-              <SidebarGroupLabel className="text-[0.62rem] font-black uppercase tracking-[0.26em] text-white/35">
+              <SidebarGroupLabel className="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-400/75">
                 Modules
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -105,15 +104,15 @@ export function AppShell({
                         tooltip={item.label}
                         onClick={() => onSelect(item.key)}
                         className={cn(
-                          "h-10 rounded-xl border border-transparent transition-all duration-200",
+                          "h-10 rounded-[0.7rem]! border border-transparent transition-all duration-200",
                           selected === item.key
-                            ? "border-apex-orange/25 bg-apex-orange/14 text-apex-orange-light shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
-                            : "text-white/60 hover:border-white/10 hover:bg-white/6 hover:text-white",
+                            ? "border-apex-orange/35 bg-apex-orange/16 text-[#ffd89a] shadow-[inset_2px_0_0_rgba(232,149,30,0.95),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                            : "text-slate-200/75 hover:border-apex-orange/15 hover:bg-apex-orange/[0.07] hover:text-white",
                         )}
                       >
                         <item.icon
                           className={cn(
-                            selected === item.key ? "text-apex-orange-light" : "text-white/40",
+                            selected === item.key ? "text-apex-orange-light" : "text-slate-300/50",
                           )}
                         />
                         <span className="text-sm">{item.label}</span>
@@ -126,25 +125,9 @@ export function AppShell({
           </SidebarContent>
 
           <SidebarFooter className="space-y-2.5 p-3">
-            <div className="relative group-data-[collapsible=icon]:hidden">
-              <div className="pointer-events-none absolute inset-x-3 -top-1 h-px bg-[linear-gradient(90deg,transparent,rgba(232,149,30,0.35),transparent)]" />
-              <ApexMark variant="sidebar" />
-            </div>
-
-            <div className="hidden justify-center group-data-[collapsible=icon]:flex">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <ApexMarkIcon />
-                </TooltipTrigger>
-                <TooltipContent side="right" className="border-white/12 bg-[#0a1628] text-white">
-                  Powered by Apex Solution
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
             <Button
               variant="outline"
-              className="w-full justify-start gap-2 rounded-xl border-white/12 bg-white/5 text-white/70 hover:bg-white/8 hover:text-white group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+              className="w-full justify-start gap-2 rounded-xl border-red-400/25 bg-red-500/10 text-white/85 hover:border-red-400/40 hover:bg-red-500/20 hover:text-white transition-colors group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
               onClick={onLogout}
             >
               <LogOut className="h-4 w-4 shrink-0" />
@@ -156,7 +139,7 @@ export function AppShell({
         </Sidebar>
 
         <SidebarInset className="min-h-svh bg-transparent">
-          <header className="sticky top-0 z-10 border-b border-white/10 bg-[linear-gradient(180deg,rgba(6,14,26,0.92),rgba(6,14,26,0.78))] backdrop-blur-xl">
+          <header className="app-chrome-header sticky top-0 z-10">
             <div className="flex h-17 items-center gap-4 px-4 lg:px-6">
               <SidebarTrigger className="text-white/60 hover:bg-white/8 hover:text-white" />
               <div className="min-w-0 flex-1">
@@ -178,8 +161,7 @@ export function AppShell({
             </div>
           </header>
 
-          <div className="relative flex-1 p-4 lg:p-6">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(232,149,30,0.06),transparent)]" />
+          <div className="workspace-stage relative flex-1 p-4 lg:p-6">
             <div className="relative">{children}</div>
           </div>
         </SidebarInset>

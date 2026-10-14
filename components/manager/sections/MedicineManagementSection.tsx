@@ -2,28 +2,46 @@
 
 import { format, parseISO } from "date-fns";
 import type { UseFormReturn } from "react-hook-form";
-import { AlertTriangle, Package, Pill, Search, Upload } from "lucide-react";
+import { Controller } from "react-hook-form";
+import { AlertTriangle, Package, Pencil, Pill, Search, Upload } from "lucide-react";
 import type { z } from "zod";
 
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { ConfirmDeleteButton } from "@/components/manager/ConfirmDeleteButton";
 import { DateFilterPicker } from "@/components/manager/DateFilterPicker";
+import { BatchMedicineDialog } from "@/components/manager/batch/BatchMedicineDialog";
 import {
   workspaceInnerPanelClass,
   workspacePanelClass,
+  WorkspaceModuleHeader,
   WorkspaceStat,
 } from "@/components/manager/workspace";
 import { TablePagination } from "@/components/manager/TablePagination";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
 import { DRUG_CATEGORIES } from "@/constants";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { addMedicine } from "@/lib/validations";
 import type { MedicineData, SupplierData } from "@/lib/actions";
+
+const medicineEditControlClass =
+  "h-11 rounded-lg border-white/14 bg-[#111d2a] text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20";
+const medicineEditLabelClass = "text-xs font-semibold text-white/65";
+const medicineEditTextareaClass =
+  "h-[13.5rem] min-h-[13.5rem] resize-none rounded-lg border-white/14 bg-[#111d2a] text-sm text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20";
 
 function getStockLevel(quantity: number) {
   if (quantity <= 0) return "out";
@@ -44,24 +62,6 @@ function getExpiryLevel(expiryDate?: string | null) {
   return "ok";
 }
 
-function ModuleHeader({
-  kicker,
-  title,
-  description,
-}: {
-  kicker: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <CardHeader className="border-b border-white/10 pb-5">
-      <p className="display-kicker text-apex-orange/90">{kicker}</p>
-      <CardTitle className="mt-2 font-display text-xl font-bold text-white">{title}</CardTitle>
-      <CardDescription className="mt-1.5 text-sm leading-6 text-white/55">{description}</CardDescription>
-    </CardHeader>
-  );
-}
-
 export function MedicineManagementSection({
   form,
   loading,
@@ -76,6 +76,7 @@ export function MedicineManagementSection({
   onSearchChange,
   onCreatedDateChange,
   onSubmit,
+  onRefresh,
   onCancelEdit,
   onDelete,
   onEdit,
@@ -95,6 +96,7 @@ export function MedicineManagementSection({
   onSearchChange: (value: string) => void;
   onCreatedDateChange: (value: string) => void;
   onSubmit: (data: z.infer<typeof addMedicine>) => void | Promise<void>;
+  onRefresh: () => void | Promise<void>;
   onCancelEdit: () => void;
   onDelete: (id: string) => void | Promise<void>;
   onEdit: (medicine: MedicineData) => void;
@@ -114,7 +116,7 @@ export function MedicineManagementSection({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <WorkspaceStat label="Total SKUs" value={String(medicineCount)} icon={Package} />
         <WorkspaceStat label="On this page" value={String(medicines.length)} tone="text-white/85" icon={Pill} />
@@ -132,129 +134,187 @@ export function MedicineManagementSection({
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.35fr]">
-        <Card className={cn(workspacePanelClass, "overflow-hidden")}>
-          <ModuleHeader
-            kicker={medicineToEdit ? "Edit mode" : "Inventory intake"}
-            title={medicineToEdit ? "Update medicine record" : "Register new medicine"}
-            description="Link each SKU to a supplier, set pricing, batch, and expiry for intelligent stock tracking."
-          />
-          <CardContent className="pt-6">
-            <form className="grid gap-4" onSubmit={form.handleSubmit(onSubmit)}>
-              <CustomFormField
-                name="name"
-                control={form.control}
-                fieldType={formFieldTypes.INPUT}
-                label="Medicine name"
-                placeholder="Enter medicine name"
-              />
-              <div className="grid gap-4 md:grid-cols-2">
-                <CustomFormField
-                  name="category"
-                  control={form.control}
-                  fieldType={formFieldTypes.SELECT}
-                  label="Category"
-                  placeholder="Select category"
-                  options={DRUG_CATEGORIES.map((item) => ({
-                    label: item.name,
-                    value: item.value,
-                  }))}
-                />
-                <CustomFormField
-                  name="supplier_id"
-                  control={form.control}
-                  fieldType={formFieldTypes.SELECT}
-                  label="Supplier"
-                  placeholder={suppliers.length ? "Select supplier" : "Add suppliers first"}
-                  options={suppliers.map((supplier) => ({
-                    label: supplier.supplier_name,
-                    value: supplier.id,
-                  }))}
-                  disabled={!suppliers.length}
-                />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <CustomFormField
-                  name="price"
-                  control={form.control}
-                  fieldType={formFieldTypes.INPUT}
-                  label="Sale price"
-                  placeholder="0.00"
-                  type="number"
-                />
-                <CustomFormField
-                  name="cost"
-                  control={form.control}
-                  fieldType={formFieldTypes.INPUT}
-                  label="Cost price"
-                  placeholder="0.00"
-                  type="number"
-                />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <CustomFormField
-                  name="quantity"
-                  control={form.control}
-                  fieldType={formFieldTypes.INPUT}
-                  label="Quantity"
-                  placeholder="0"
-                  type="number"
-                />
-                <CustomFormField
-                  name="batch_number"
-                  control={form.control}
-                  fieldType={formFieldTypes.INPUT}
-                  label="Batch number"
-                  placeholder="Batch number"
-                />
-              </div>
-              <CustomFormField
-                name="expiry_date"
-                control={form.control}
-                fieldType={formFieldTypes.CALENDAR}
-                label="Expiry date"
-                placeholder="Pick expiry date"
-              />
-              <CustomFormField
-                name="description"
-                control={form.control}
-                fieldType={formFieldTypes.TEXTAREA}
-                label="Description"
-                placeholder="Enter medicine description"
-              />
-
-              <div className="flex flex-wrap gap-3 border-t border-white/10 pt-4">
-                <Button type="submit" disabled={loading || !suppliers.length}>
-                  {loading ? "Saving..." : medicineToEdit ? "Update medicine" : "Add medicine"}
-                </Button>
-                {medicineToEdit ? (
-                  <Button type="button" variant="outline" className="border-white/14 bg-white/5" onClick={onCancelEdit}>
-                    Cancel edit
-                  </Button>
-                ) : null}
-                <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/14 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/8">
-                  <Upload className="h-4 w-4 text-apex-orange-light" />
-                  {importing ? "Importing..." : "Import Excel"}
-                  <input
-                    type="file"
-                    accept=".xlsx"
-                    className="hidden"
-                    disabled={importing}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (!file) return;
-                      void onImport(file);
-                      event.target.value = "";
-                    }}
+      <div className="flex flex-col gap-6">
+        {medicineToEdit ? (
+          <Dialog open onOpenChange={(open) => { if (!open) onCancelEdit(); }}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border border-white/12 bg-[#0b1420] p-0 text-white shadow-xl ring-0 sm:max-w-5xl">
+              <DialogHeader className="border-b border-white/10 px-6 py-5 pr-14">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/4 text-teal-200">
+                    <Pill className="size-5" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold text-white/45">Inventory record</p>
+                    <DialogTitle className="mt-1 text-lg font-semibold text-white">Edit medicine</DialogTitle>
+                    <DialogDescription className="mt-1 text-sm text-white/60">Update product, supplier and stock details.</DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+            <form className="grid gap-5 p-5 sm:p-6" onSubmit={form.handleSubmit(onSubmit)}>
+              <section className="space-y-5">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <CustomFormField
+                    name="name"
+                    control={form.control}
+                    fieldType={formFieldTypes.INPUT}
+                    label="Medicine name"
+                    placeholder="Enter medicine name"
+                    labelClassName={medicineEditLabelClass}
+                    inputClassName={medicineEditControlClass}
                   />
-                </label>
+                  <div className="space-y-2">
+                    <label htmlFor="medicine-category" className={medicineEditLabelClass}>Category</label>
+                    <Controller
+                      name="category"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Combobox
+                          id="medicine-category"
+                          value={field.value}
+                          onChange={field.onChange}
+                          options={DRUG_CATEGORIES.map((item) => ({ label: item.name, value: item.value }))}
+                          placeholder="Select category"
+                          searchPlaceholder="Search categories..."
+                          className={medicineEditControlClass}
+                        />
+                      )}
+                    />
+                    {form.formState.errors.category ? (
+                      <p className="text-sm text-destructive">{form.formState.errors.category.message}</p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="medicine-supplier" className={medicineEditLabelClass}>Supplier</label>
+                    <Controller
+                      name="supplier_id"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Combobox
+                          id="medicine-supplier"
+                          value={field.value}
+                          onChange={field.onChange}
+                          options={suppliers.map((supplier) => ({
+                            label: supplier.supplier_name,
+                            value: supplier.id,
+                          }))}
+                          placeholder={suppliers.length ? "Select supplier" : "Add suppliers first"}
+                          searchPlaceholder="Search suppliers..."
+                          disabled={!suppliers.length}
+                          className={medicineEditControlClass}
+                        />
+                      )}
+                    />
+                    {form.formState.errors.supplier_id ? (
+                      <p className="text-sm text-destructive">{form.formState.errors.supplier_id.message}</p>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  <CustomFormField
+                    name="price"
+                    control={form.control}
+                    fieldType={formFieldTypes.INPUT}
+                    label="Sale price"
+                    placeholder="0.00"
+                    type="number"
+                    labelClassName={medicineEditLabelClass}
+                    inputClassName={medicineEditControlClass}
+                  />
+                  <CustomFormField
+                    name="cost"
+                    control={form.control}
+                    fieldType={formFieldTypes.INPUT}
+                    label="Cost price"
+                    placeholder="0.00"
+                    type="number"
+                    labelClassName={medicineEditLabelClass}
+                    inputClassName={medicineEditControlClass}
+                  />
+                  <CustomFormField
+                    name="quantity"
+                    control={form.control}
+                    fieldType={formFieldTypes.INPUT}
+                    label="Quantity"
+                    placeholder="0"
+                    type="number"
+                    labelClassName={medicineEditLabelClass}
+                    inputClassName={medicineEditControlClass}
+                  />
+                  <CustomFormField
+                    name="batch_number"
+                    control={form.control}
+                    fieldType={formFieldTypes.INPUT}
+                    label="Batch number"
+                    placeholder="Batch number"
+                    labelClassName={medicineEditLabelClass}
+                    inputClassName={medicineEditControlClass}
+                  />
+                  <CustomFormField
+                    name="expiry_date"
+                    control={form.control}
+                    fieldType={formFieldTypes.CALENDAR}
+                    label="Expiry date"
+                    placeholder="Pick expiry date"
+                    labelClassName={medicineEditLabelClass}
+                    inputClassName={`${medicineEditControlClass} w-full justify-between px-3 font-normal`}
+                  />
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <CustomFormField
+                    name="description"
+                    control={form.control}
+                    fieldType={formFieldTypes.TEXTAREA}
+                    label="Description"
+                    placeholder="Enter medicine description"
+                    labelClassName={medicineEditLabelClass}
+                    inputClassName={medicineEditTextareaClass}
+                  />
+                  <CustomFormField
+                    name="image_url"
+                    control={form.control}
+                    fieldType={formFieldTypes.IMAGE_UPLOADER}
+                    label="Medicine image"
+                    placeholder="Upload or take a medicine photo"
+                    labelClassName={medicineEditLabelClass}
+                  />
+                </div>
+              </section>
+
+              <div className="flex flex-wrap justify-end gap-3 border-t border-white/10 pt-4">
+                <Button type="button" variant="outline" className="border-white/14 bg-white/5" onClick={onCancelEdit}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading || !suppliers.length}>
+                  {loading ? "Saving..." : "Update medicine"}
+                </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+            </DialogContent>
+          </Dialog>
+        ) : (
+          <div className="space-y-3">
+            <BatchMedicineDialog suppliers={suppliers} onSuccess={onRefresh} />
+            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/14 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/8">
+              <Upload className="h-4 w-4 text-apex-orange-light" />
+              {importing ? "Importing..." : "Import Excel"}
+              <input
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                disabled={importing}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  void onImport(file);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+          </div>
+        )}
 
         <Card className={cn(workspacePanelClass, "overflow-hidden")}>
-          <ModuleHeader
+          <WorkspaceModuleHeader
             kicker="Stock ledger"
             title="Medicine inventory"
             description="Search, filter, and act on stock levels and expiry urgency in real time."
@@ -267,7 +327,7 @@ export function MedicineManagementSection({
                   value={medicineSearch}
                   onChange={(event) => onSearchChange(event.target.value)}
                   placeholder="Search medicines, category, supplier..."
-                  className="h-11 border-white/12 bg-[#060e1a]/80 pl-9 text-white placeholder:text-white/35"
+                  className="h-11 border-white/10 bg-white/[0.035] pl-9 text-white placeholder:text-white/50 focus-visible:border-apex-orange/40 focus-visible:ring-apex-orange/20"
                 />
               </div>
               <DateFilterPicker
@@ -298,7 +358,20 @@ export function MedicineManagementSection({
                       <TableRow key={item.id} className="border-white/8 hover:bg-white/4">
                         <TableCell>
                           <div className="space-y-1">
-                            <p className="font-medium text-white/90">{item.name}</p>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="size-11 rounded-xl border border-apex-orange/20 bg-apex-orange/10">
+                                <AvatarImage src={item.image_url || undefined} alt={`${item.name} medicine`} />
+                                <AvatarFallback className="rounded-xl bg-apex-orange/10 text-xs font-bold uppercase text-apex-orange-light">
+                                  {item.name
+                                    .trim()
+                                    .split(/\s+/)
+                                    .slice(0, 2)
+                                    .map((part) => part[0])
+                                    .join("") || "M"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <p className="font-medium text-white/90">{item.name}</p>
+                            </div>
                             <p className="text-xs text-white/40">Batch: {item.batch_number || "N/A"}</p>
                           </div>
                         </TableCell>
@@ -377,20 +450,26 @@ export function MedicineManagementSection({
                             );
                           })()}
                         </TableCell>
-                        <TableCell className="space-x-2">
+                        <TableCell>
+                          <div className="flex items-center gap-2">
                           <Button
-                            size="sm"
+                            size="icon-sm"
                             variant="outline"
                             className="border-white/12 bg-white/5"
                             onClick={() => onEdit(item)}
+                            aria-label={`Edit ${item.name}`}
+                            title={`Edit ${item.name}`}
                           >
-                            Edit
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <ConfirmDeleteButton
                             title="Delete medicine?"
                             description={`Remove ${item.name} from inventory. This action cannot be undone.`}
                             onConfirm={() => onDelete(item.id)}
+                            iconOnly
+                            ariaLabel={`Delete ${item.name}`}
                           />
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -428,6 +507,7 @@ export function MedicineManagementSection({
           </CardContent>
         </Card>
       </div>
+
     </div>
   );
 }

@@ -6,11 +6,13 @@ import { format } from "date-fns";
 import { CalendarIcon, ImageIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Image from "next/image";
+import { Camera } from "lucide-react";
 import type { Control, FieldPath, FieldValues } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 
 import { PhoneInput } from "@/components/phone-input";
+import { CameraDialog } from "@/components/ui/camera-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -115,7 +117,7 @@ type CustomFormFieldProps<T extends FieldValues> =
   | ControlledProps<T>
   | AlertDialogProps<T>;
 
-const CloudinaryImageUploader = ({
+export const CloudinaryImageUploader = ({
   id,
   value,
   placeholder,
@@ -134,12 +136,34 @@ const CloudinaryImageUploader = ({
     typeof value === "string" ? value : "",
   );
   const [uploading, setUploading] = React.useState(false);
+  const [cameraOpen, setCameraOpen] = React.useState(false);
 
   React.useEffect(() => {
     (() => {
       setPreviewUrl(typeof value === "string" ? value : "");
     })();
   }, [value]);
+
+  const handleCameraCapture = async (file: File) => {
+    const localPreview = URL.createObjectURL(file);
+    setPreviewUrl(localPreview);
+    setUploading(true);
+
+    try {
+      const uploadedUrl = await uploadImageToCloudinary(file);
+      onChange(uploadedUrl);
+      setPreviewUrl(uploadedUrl);
+      toast.success("Photo captured and uploaded successfully");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Photo upload failed";
+      toast.error(message);
+      setPreviewUrl(typeof value === "string" ? value : "");
+    } finally {
+      URL.revokeObjectURL(localPreview);
+      setUploading(false);
+    }
+  };
 
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -217,6 +241,24 @@ const CloudinaryImageUploader = ({
         disabled={disabled || uploading}
         onChange={handleImageUpload}
       />
+      <div className="mt-3 flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled || uploading}
+          onClick={() => setCameraOpen(true)}
+          className="gap-2 rounded-xl border-white/12 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+        >
+          <Camera className="h-4 w-4 text-apex-orange-light" />
+          Take a photo
+        </Button>
+      </div>
+      <CameraDialog
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onCapture={handleCameraCapture}
+      />
     </div>
   );
 };
@@ -289,7 +331,7 @@ const CustomFormField = <T extends FieldValues>(
           <Field className={cn("min-w-0 flex-col gap-1.5", className)} data-invalid={hasError || undefined}>
             {label ? (
               <FieldLabel
-                className={cn("text-sm font-medium text-white/80", labelClassName)}
+                className={cn("text-sm font-semibold tracking-[0.01em] text-slate-200/90", labelClassName)}
                 htmlFor={String(name)}
               >
                 {label}
@@ -341,7 +383,7 @@ const CustomFormField = <T extends FieldValues>(
                   onBlur={field.onBlur}
                   onChange={field.onChange}
                   name={field.name}
-                  className={className}
+                  className={cn(className, inputClassName)}
                 />
               ) : null}
 
@@ -392,7 +434,7 @@ const CustomFormField = <T extends FieldValues>(
                     <Button
                       type="button"
                       variant="outline"
-                      className={className}
+                      className={cn(className, inputClassName)}
                     >
                       <span
                         className={
@@ -412,7 +454,10 @@ const CustomFormField = <T extends FieldValues>(
                       />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent
+                    className="w-auto rounded-none border-0 bg-none p-0 shadow-none ring-0"
+                    align="start"
+                  >
                     <Calendar
                       mode="single"
                       selected={dateValue}
@@ -572,7 +617,7 @@ const TagInput = ({
               key={tag}
               type="button"
               onClick={() => removeTag(tag)}
-              className="inline-flex items-center gap-2 rounded-full border border-apex-orange/20 bg-apex-orange/10 px-3 py-1 text-sm text-apex-orange-light transition hover:bg-(--apex-orange)/20"
+              className="inline-flex items-center gap-2 rounded-full border border-apex-orange/20 bg-apex-orange/10 px-3 py-1 text-sm text-apex-orange-light transition hover:bg-apex-orange/20"
             >
               <span>{tag}</span>
               <span className="text-(--apex-orange)/80">x</span>

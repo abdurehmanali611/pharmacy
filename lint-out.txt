@@ -1,0 +1,6 @@
+
+C:\Users\abdur\Documents\Projects\pharmacy\components\manager\sections\InvoiceManagementSection.tsx
+  45:10  warning  'FormSection' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 1 problem (0 errors, 1 warning)
+
