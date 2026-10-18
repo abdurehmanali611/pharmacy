@@ -138,7 +138,7 @@ export function AppShell({
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="min-h-svh bg-transparent">
+        <SidebarInset className="min-h-svh min-w-0 bg-transparent">
           <header className="app-chrome-header sticky top-0 z-10">
             <div className="flex h-17 items-center gap-4 px-4 lg:px-6">
               <SidebarTrigger className="text-white/60 hover:bg-white/8 hover:text-white" />
