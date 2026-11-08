@@ -3,7 +3,7 @@ import axios, { type AxiosError } from "axios"
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { toast } from "sonner";
 
-const DEFAULT_API_BASE_URL = "https://pharmacy-backend-black.vercel.app/api";
+const DEFAULT_API_BASE_URL = "https://pharmacy-backend-ebon-delta.vercel.app/api";
 
 type MaybePaginated<T> =
   | T[]
