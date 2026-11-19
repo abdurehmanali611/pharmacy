@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { addDays, format, startOfDay } from "date-fns";
+import { addDays, addHours, differenceInCalendarDays, format, startOfDay } from "date-fns";
 import {
   Activity,
   ArrowDownRight,
@@ -35,7 +35,13 @@ import { formatCurrency } from "@/lib/format";
 import { creditDue, daysToExpiry, stockCostValue, toNumber } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
 
-const DAYS = 30;
+export type HealthPeriod = {
+  /** True for a single day: the chart then shows hours instead of days. */
+  hourly: boolean;
+  start: Date;
+  end: Date;
+  label: string;
+};
 
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 
@@ -81,17 +87,23 @@ function Delta({ value }: { value: number }) {
 export function PharmacyHealthOverview({
   purchases,
   medicines,
+  period,
 }: {
-  /** Every sale, not just the report period: health is judged over time. */
+  /** Sales inside the chosen report period. */
   purchases: PurchaseData[];
   medicines: MedicineData[];
+  period: HealthPeriod;
 }) {
   const model = useMemo(() => {
+    const keyOf = (d: Date) => format(d, period.hourly ? "yyyy-MM-dd HH" : "yyyy-MM-dd");
     const today = startOfDay(new Date());
-    const days = Array.from({ length: DAYS }, (_, i) => addDays(today, i - (DAYS - 1)));
-    const byDay = new Map(days.map((d) => [format(d, "yyyy-MM-dd"), { revenue: 0, profit: 0, units: 0, sales: 0 }]));
+    const last = period.end > today ? today : period.end;
+    const first = period.start > last ? last : period.start;
+    const count = period.hourly ? 24 : Math.max(2, differenceInCalendarDays(last, first) + 1);
+    const days = Array.from({ length: count }, (_, i) => (period.hourly ? addHours(first, i) : addDays(first, i)));
+    const byDay = new Map(days.map((d) => [keyOf(d), { revenue: 0, profit: 0, units: 0, sales: 0 }]));
     for (const p of purchases) {
-      const bucket = byDay.get(format(new Date(p.created_at), "yyyy-MM-dd"));
+      const bucket = byDay.get(keyOf(new Date(p.created_at)));
       if (!bucket) continue;
       bucket.revenue += toNumber(p.total_price);
       bucket.profit += toNumber(p.profit);
@@ -99,12 +111,12 @@ export function PharmacyHealthOverview({
       bucket.sales += 1;
     }
     const series = days.map((d) => {
-      const b = byDay.get(format(d, "yyyy-MM-dd"))!;
-      return { date: d, label: format(d, "MMM d"), ...b };
+      const b = byDay.get(keyOf(d))!;
+      return { date: d, label: format(d, period.hourly ? "HH:00" : "MMM d"), ...b };
     });
     const trend = trendLine(series.map((r) => r.revenue));
     const withAvg = series.map((r, i) => {
-      const window = series.slice(Math.max(0, i - 6), i + 1);
+      const window = series.slice(Math.max(0, i - (period.hourly ? 2 : 6)), i + 1);
       return {
         ...r,
         average: window.reduce((s, x) => s + x.revenue, 0) / window.length,
@@ -113,22 +125,26 @@ export function PharmacyHealthOverview({
     });
 
     const sum = (rows: typeof series, key: "revenue" | "profit" | "units" | "sales") => rows.reduce((s, r) => s + r[key], 0);
-    const thisWeek = series.slice(-7);
-    const lastWeek = series.slice(-14, -7);
-    const thisMonth = series;
+    const mid = Math.floor(series.length / 2);
+    const earlier = series.slice(0, mid);
+    const later = series.slice(series.length - mid);
     const wow = {
-      revenue: change(sum(thisWeek, "revenue"), sum(lastWeek, "revenue")),
-      profit: change(sum(thisWeek, "profit"), sum(lastWeek, "profit")),
-      units: change(sum(thisWeek, "units"), sum(lastWeek, "units")),
-      sales: change(sum(thisWeek, "sales"), sum(lastWeek, "sales")),
+      revenue: change(sum(later, "revenue"), sum(earlier, "revenue")),
+      profit: change(sum(later, "profit"), sum(earlier, "profit")),
+      units: change(sum(later, "units"), sum(earlier, "units")),
+      sales: change(sum(later, "sales"), sum(earlier, "sales")),
     };
-    const first15 = series.slice(0, 15);
-    const last15 = series.slice(15);
-    const half = change(sum(last15, "revenue"), sum(first15, "revenue"));
+    const half = wow.revenue;
 
-    const revenue30 = sum(thisMonth, "revenue");
-    const profit30 = sum(thisMonth, "profit");
+    const revenue30 = sum(series, "revenue");
+    const profit30 = sum(series, "profit");
     const margin = revenue30 > 0 ? (profit30 / revenue30) * 100 : 0;
+    const totals = {
+      revenue: revenue30,
+      profit: profit30,
+      units: sum(series, "units"),
+      sales: sum(series, "sales"),
+    };
 
     // Health factors, each scored 0-100.
     const lines = medicines.length || 1;
@@ -143,18 +159,18 @@ export function PharmacyHealthOverview({
     const credit = medicines.reduce((s, m) => s + creditDue(m), 0);
 
     const factors = [
-      { key: "growth", label: "Sales growth", detail: `${wow.revenue >= 0 ? "+" : ""}${wow.revenue.toFixed(1)}% vs last week`, score: clamp(55 + wow.revenue * 1.2), icon: Rocket, color: "#a855f7" },
-      { key: "margin", label: "Profit margin", detail: `${margin.toFixed(1)}% over 30 days`, score: clamp(margin * 3.2), icon: Percent, color: "#22d3ee" },
+      { key: "growth", label: "Sales growth", detail: `${wow.revenue >= 0 ? "+" : ""}${wow.revenue.toFixed(1)}% later half vs earlier half`, score: clamp(55 + wow.revenue * 1.2), icon: Rocket, color: "#a855f7" },
+      { key: "margin", label: "Profit margin", detail: `${margin.toFixed(1)}% in ${period.label}`, score: clamp(margin * 3.2), icon: Percent, color: "#22d3ee" },
       { key: "stock", label: "Stock health", detail: `${out} out · ${low} low of ${medicines.length} lines`, score: clamp(100 - ((out + low * 0.5) / lines) * 160), icon: Layers, color: "#34d399" },
       { key: "expiry", label: "Expiry safety", detail: `${risky} item${risky === 1 ? "" : "s"} expire within 3 months`, score: clamp(100 - (risky / (stocked.length || 1)) * 180), icon: Hourglass, color: "#fbbf24" },
-      { key: "credit", label: "Credit load", detail: `${formatCurrency(credit)} owed to suppliers`, score: clamp(100 - (stockValue > 0 ? (credit / stockValue) * 160 : 0)), icon: Wallet, color: "#f472b6" },
+      { key: "credit", label: "Credit health", detail: `${formatCurrency(credit)} owed to suppliers`, score: clamp(100 - (stockValue > 0 ? (credit / stockValue) * 160 : 0)), icon: Wallet, color: "#f472b6" },
     ];
     const weights = [0.3, 0.2, 0.2, 0.15, 0.15];
     const score = Math.round(factors.reduce((s, f, i) => s + f.score * weights[i], 0));
 
     const direction = trend.slope > 0 && half > 3 ? "up" : trend.slope < 0 && half < -3 ? "down" : "flat";
-    return { series: withAvg, wow, half, margin, factors, score, direction, slope: trend.slope, revenue30, profit30, hasSales: purchases.length > 0 };
-  }, [medicines, purchases]);
+    return { series: withAvg, wow, half, margin, factors, score, direction, slope: trend.slope, totals, hasSales: purchases.length > 0 };
+  }, [medicines, purchases, period]);
 
   const verdict =
     model.score >= 75 ? { label: "Thriving", tone: "text-emerald-200", ring: "#34d399" }
@@ -164,12 +180,12 @@ export function PharmacyHealthOverview({
 
   const story =
     !model.hasSales
-      ? "No sales recorded yet, so there is no trend to read."
+      ? `No sales were recorded in ${period.label}, so there is no trend to read.`
       : model.direction === "up"
-        ? `Sales are climbing: the last 15 days earned ${model.half.toFixed(0)}% more than the 15 before, and this week is ${model.wow.revenue >= 0 ? "up" : "down"} ${Math.abs(model.wow.revenue).toFixed(0)}% on last week.`
+        ? `Sales are climbing in ${period.label}: the later half earned ${model.half.toFixed(0)}% more than the earlier half.`
         : model.direction === "down"
-          ? `Sales are slipping: the last 15 days earned ${Math.abs(model.half).toFixed(0)}% less than the 15 before. Check slow movers and stock gaps.`
-          : "Sales are steady with no strong rise or fall over the last 30 days.";
+          ? `Sales are slipping in ${period.label}: the later half earned ${Math.abs(model.half).toFixed(0)}% less than the earlier half. Check slow movers and stock gaps.`
+          : `Sales are steady through ${period.label} with no strong rise or fall.`;
 
   const gauge = [{ name: "score", value: model.score, fill: verdict.ring }];
 
@@ -179,7 +195,7 @@ export function PharmacyHealthOverview({
         icon={HeartPulse}
         tint="emerald"
         title="Pharmacy health overview"
-        subtitle="How the pharmacy is doing, and whether it is improving day to day"
+        subtitle={`How the pharmacy did in ${period.label}, and whether it is improving`}
         right={
           <Chip
             className={cn(
@@ -217,12 +233,12 @@ export function PharmacyHealthOverview({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-violet-200">
-              <Activity className="size-3.5" /> Last 30 days · sales and profit
+              <Activity className="size-3.5" /> {period.label} · sales and profit
             </p>
             <div className="flex flex-wrap gap-3 text-[11px] text-white/65">
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-violet-400" /> Revenue</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-emerald-400" /> Profit</span>
-              <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-amber-300" /> 7-day average</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-amber-300" /> moving average</span>
               <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 border-t-2 border-dashed border-pink-300" /> Trend</span>
             </div>
           </div>
@@ -236,7 +252,7 @@ export function PharmacyHealthOverview({
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 10 }} tickLine={false} axisLine={false} interval={4} />
+                <XAxis dataKey="label" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 10 }} tickLine={false} axisLine={false} interval={Math.max(0, Math.ceil(model.series.length / 8) - 1)} />
                 <YAxis tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 10 }} tickLine={false} axisLine={false} width={46} tickFormatter={(v) => (Math.abs(Number(v)) >= 1000 ? `${Math.round(Number(v) / 100) / 10}k` : `${v}`)} />
                 <Tooltip
                   contentStyle={{ background: "#0d0b2b", border: "1px solid rgba(168,85,247,0.4)", borderRadius: 12 }}
@@ -244,7 +260,7 @@ export function PharmacyHealthOverview({
                 />
                 <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#c084fc" strokeWidth={2.5} fill="url(#healthRevenue)" />
                 <Line type="monotone" dataKey="profit" name="Profit" stroke="#34d399" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="average" name="7-day average" stroke="#fcd34d" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="average" name="Moving average" stroke="#fcd34d" strokeWidth={2} dot={false} />
                 <Line type="linear" dataKey="trend" name="Trend" stroke="#f9a8d4" strokeWidth={2} strokeDasharray="6 5" dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
@@ -252,19 +268,19 @@ export function PharmacyHealthOverview({
         </div>
       </div>
 
-      {/* week over week */}
+      {/* period totals */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          ["Revenue", formatCurrency(model.series.slice(-7).reduce((s, r) => s + r.revenue, 0)), model.wow.revenue, "tint-violet"],
-          ["Profit", formatCurrency(model.series.slice(-7).reduce((s, r) => s + r.profit, 0)), model.wow.profit, "tint-emerald"],
-          ["Units sold", model.series.slice(-7).reduce((s, r) => s + r.units, 0).toLocaleString(), model.wow.units, "tint-cyan"],
-          ["Sale lines", model.series.slice(-7).reduce((s, r) => s + r.sales, 0).toLocaleString(), model.wow.sales, "tint-pink"],
+          ["Revenue", formatCurrency(model.totals.revenue), model.wow.revenue, "tint-violet"],
+          ["Profit", formatCurrency(model.totals.profit), model.wow.profit, "tint-emerald"],
+          ["Units sold", model.totals.units.toLocaleString(), model.wow.units, "tint-cyan"],
+          ["Sale lines", model.totals.sales.toLocaleString(), model.wow.sales, "tint-pink"],
         ].map(([label, value, delta, tint]) => (
           <div key={label as string} className={cn("workspace-inner-surface p-4", tint as string)}>
-            <p className="tint-text text-[0.65rem] font-bold uppercase tracking-[0.14em]">{label} · this week</p>
+            <p className="tint-text text-[0.65rem] font-bold uppercase tracking-[0.14em]">{label}</p>
             <p className="mt-2 font-display text-2xl font-bold tabular-nums text-white">{value as string}</p>
             <div className="mt-1.5 flex items-center gap-2 text-xs text-white/60">
-              <Delta value={delta as number} /> vs previous 7 days
+              <Delta value={delta as number} /> later half vs earlier half
             </div>
           </div>
         ))}
@@ -278,7 +294,12 @@ export function PharmacyHealthOverview({
               <span className="flex size-8 items-center justify-center rounded-lg" style={{ backgroundColor: `${f.color}30`, color: f.color }}>
                 <f.icon className="size-4" />
               </span>
-              <span className="font-display text-lg font-bold tabular-nums text-white">{Math.round(f.score)}</span>
+              <span className="flex items-baseline gap-1.5">
+                <span className="font-display text-lg font-bold tabular-nums text-white">{Math.round(f.score)}</span>
+                <span className="text-[0.62rem] font-bold uppercase tracking-wider" style={{ color: f.color }}>
+                  {f.score >= 75 ? "Excellent" : f.score >= 55 ? "Good" : f.score >= 40 ? "Fair" : "Poor"}
+                </span>
+              </span>
             </div>
             <p className="mt-2 text-sm font-bold text-white">{f.label}</p>
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">

@@ -75,6 +75,7 @@ export function CredentialManagementSection({
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<UserData | null>(null);
   const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editConfirm, setEditConfirm] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
@@ -133,19 +134,30 @@ export function CredentialManagementSection({
     }
   };
 
+  // Passwords are stored hashed and can never be read back, so the dialog shows a masked
+  // placeholder for the saved one. Leaving it untouched keeps the current password.
+  const SAVED_PASSWORD = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
+
   const openEdit = (user: UserData) => {
     setEditing(user);
     setEditName(user.full_name ?? "");
-    setEditPassword("");
-    setEditConfirm("");
+    setEditUsername(user.username);
+    setEditPassword(SAVED_PASSWORD);
+    setEditConfirm(SAVED_PASSWORD);
   };
 
   const saveEdit = async () => {
     if (!editing) return;
     if (!editName.trim()) return toast.error("Enter the full name");
-    if (editPassword && editPassword.length < 4) return toast.error("Password must be at least 4 characters");
-    if (editPassword !== editConfirm) return toast.error("Passwords do not match");
-    const result = await updateSalesAgent(editing.id, { full_name: editName.trim(), password: editPassword || undefined }, setSavingEdit);
+    const newUsername = editUsername.trim();
+    if (!newUsername) return toast.error("Enter the username");
+    if (/\s/.test(newUsername)) return toast.error("Username cannot contain spaces");
+    const changed = editPassword !== SAVED_PASSWORD || editConfirm !== SAVED_PASSWORD;
+    if (changed) {
+      if (editPassword.length < 4) return toast.error("Password must be at least 4 characters");
+      if (editPassword !== editConfirm) return toast.error("Passwords do not match");
+    }
+    const result = await updateSalesAgent(editing.id, { full_name: editName.trim(), username: newUsername, password: changed ? editPassword : undefined }, setSavingEdit);
     if (result) {
       setEditing(null);
       await onRefresh();
@@ -177,7 +189,7 @@ export function CredentialManagementSection({
                   Sales username: <span className="font-mono text-cyan-100">@{savedUsername}</span>
                 </p>
                 <p className="text-xs text-white/65">
-                  Every sales agent signs in with this username. To change it, delete all sales agents and create them again.
+                  Every sales agent signs in with this username. To change it, edit any sales agent in the table below; the new username applies to the whole team.
                 </p>
               </div>
             </div>
@@ -242,7 +254,7 @@ export function CredentialManagementSection({
                       </div>
                       {!editable ? (
                         <p className="mt-1 text-xs text-white/55">
-                          {savedUsername ? "Saved — can't be edited" : `Set on agent #${sourceIndex + 1}. Edit it there.`}
+                          {savedUsername ? "Saved — change it from an agent's edit dialog" : `Set on agent #${sourceIndex + 1}. Edit it there.`}
                         </p>
                       ) : null}
                     </div>
@@ -289,11 +301,11 @@ export function CredentialManagementSection({
 
           <AddLineBar label="Add another sales agent" onClick={() => setLines((prev) => [...prev, emptyLine()])} />
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5">
-            <p className="text-sm text-white/60">
-              The username is saved with the first agents and can&apos;t be changed unless every sales agent is deleted. Every agent needs a password no other sales agent uses anywhere on the platform.
+          <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-5">
+            <p className="min-w-0 flex-1 basis-72 text-sm text-white/60">
+              The username is saved with the first agents; to change it, edit any agent and it updates for the whole team. Every agent needs a password no other sales agent uses anywhere on the platform.
             </p>
-            <Button type="button" size="lg" className="min-w-56" disabled={saving || loading} onClick={() => void saveAgents()}>
+            <Button type="button" size="lg" className="ml-auto min-w-56" disabled={saving || loading} onClick={() => void saveAgents()}>
               <Sparkles className="mr-1.5 h-4 w-4" />
               {saving ? "Creating…" : `Create ${lines.length > 1 ? `${lines.length} sales agents` : "sales agent"}`}
             </Button>
@@ -413,7 +425,7 @@ export function CredentialManagementSection({
               placeholder="Confirm new password"
               type="password"
             />
-            <div className="md:col-span-3">
+            <div className="flex justify-end md:col-span-3">
               <Button type="submit" size="lg" disabled={loading}>
                 <KeyRound className="mr-1.5 h-4 w-4" />
                 {loading ? "Updating..." : "Update password"}
@@ -432,7 +444,7 @@ export function CredentialManagementSection({
               </span>
               Edit sales agent
             </DialogTitle>
-            <DialogDescription>Update the agent&apos;s name or set a new password.</DialogDescription>
+            <DialogDescription>Update the agent&apos;s name or the team username. The saved password is shown masked; type over it to change it.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -441,21 +453,18 @@ export function CredentialManagementSection({
             </div>
             <div>
               <FieldLabel icon={Lock} tone="cyan">Username</FieldLabel>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-white/40" />
-                <Input value={editing ? `@${editing.username}` : ""} disabled readOnly className="h-11 cursor-not-allowed pl-10 opacity-70" />
-              </div>
-              <p className="mt-1 text-xs text-white/50">A username is created once and can&apos;t be edited.</p>
+              <Input value={editUsername} onChange={(e) => setEditUsername(e.target.value.replace(/\s/g, ""))} className="h-11 font-mono" autoComplete="off" />
+              <p className="mt-1 text-xs text-white/50">Changing the username here changes it for every sales agent.</p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <FieldLabel icon={KeyRound} tone="pink">New password (optional)</FieldLabel>
-                <Input type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Leave empty to keep" autoComplete="new-password" className="h-11" />
+                <FieldLabel icon={KeyRound} tone="pink">Password</FieldLabel>
+                <Input type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} onFocus={(e) => e.target.select()} placeholder="Password" autoComplete="new-password" className="h-11" />
                 <p className="mt-1 text-xs text-white/50">Must be unique across the platform.</p>
               </div>
               <div>
                 <FieldLabel icon={ShieldCheck} tone="emerald">Confirm password</FieldLabel>
-                <Input type="password" value={editConfirm} onChange={(e) => setEditConfirm(e.target.value)} placeholder="Repeat password" autoComplete="new-password" className="h-11" />
+                <Input type="password" value={editConfirm} onChange={(e) => setEditConfirm(e.target.value)} onFocus={(e) => e.target.select()} placeholder="Repeat password" autoComplete="new-password" className="h-11" />
               </div>
             </div>
           </div>

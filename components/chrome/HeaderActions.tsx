@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Bell, CheckCheck, RefreshCw, Sparkles } from "lucide-react";
+import { Bell, Check, CheckCheck, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -26,6 +26,26 @@ const TONES: Record<AppNotification["tone"], string> = {
   violet: "border-violet-300/35 bg-violet-400/12 text-violet-200",
 };
 
+const READ_KEY = "pharmacy:read-notifications";
+
+function loadRead(): Set<string> {
+  try {
+    const raw = localStorage.getItem(READ_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function storeRead(ids: Set<string>) {
+  try {
+    // keep the list from growing forever
+    localStorage.setItem(READ_KEY, JSON.stringify([...ids].slice(-300)));
+  } catch {
+    /* storage unavailable: read state just lasts for this visit */
+  }
+}
+
 const iconButton =
   "relative flex size-10 items-center justify-center rounded-xl border border-white/15 bg-white/8 text-white/80 transition hover:border-fuchsia-300/60 hover:bg-white/16 hover:text-white";
 
@@ -37,10 +57,23 @@ export function NotificationBell({
   onOpenTarget?: (target: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [seen, setSeen] = useState<Set<string>>(new Set());
+  const [read, setRead] = useState<Set<string>>(new Set());
 
-  const unread = notifications.filter((n) => !seen.has(n.id));
-  const markAllRead = () => setSeen(new Set(notifications.map((n) => n.id)));
+  // Read state is remembered on this device, so handled notifications stay gone next time.
+  useEffect(() => {
+    setRead(loadRead());
+  }, []);
+
+  const markRead = (ids: string[]) =>
+    setRead((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      storeRead(next);
+      return next;
+    });
+
+  const unread = notifications.filter((n) => !read.has(n.id));
+  const markAllRead = () => markRead(unread.map((n) => n.id));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -59,7 +92,7 @@ export function NotificationBell({
           <div>
             <p className="font-display text-base font-bold">Notifications</p>
             <p className="text-xs text-white/55">
-              {notifications.length ? `${unread.length} unread · ${notifications.length} total` : "Nothing needs attention"}
+              {unread.length ? `${unread.length} unread` : "Nothing needs attention"}
             </p>
           </div>
           {unread.length ? (
@@ -75,33 +108,36 @@ export function NotificationBell({
         </div>
 
         <div className="max-h-96 space-y-2 overflow-y-auto p-3">
-          {notifications.length ? (
-            notifications.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => {
-                  setSeen((prev) => new Set(prev).add(n.id));
-                  if (n.target) onOpenTarget?.(n.target);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition hover:brightness-125",
-                  TONES[n.tone],
-                  seen.has(n.id) && "opacity-60",
-                )}
-              >
-                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/12">
-                  <n.icon className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate text-sm font-bold text-white">{n.title}</span>
-                    {!seen.has(n.id) ? <span className="size-2 shrink-0 rounded-full bg-rose-400" /> : null}
+          {unread.length ? (
+            unread.map((n) => (
+              <div key={n.id} className={cn("flex items-start gap-2 rounded-2xl border p-3 transition", TONES[n.tone])}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    markRead([n.id]);
+                    if (n.target) onOpenTarget?.(n.target);
+                    setOpen(false);
+                  }}
+                  className="flex min-w-0 flex-1 items-start gap-3 text-left transition hover:brightness-125"
+                >
+                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/12">
+                    <n.icon className="size-4" />
                   </span>
-                  <span className="mt-0.5 block text-xs leading-snug text-white/70">{n.description}</span>
-                </span>
-              </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold text-white">{n.title}</span>
+                    <span className="mt-0.5 block text-xs leading-snug text-white/70">{n.description}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => markRead([n.id])}
+                  title="Mark as read"
+                  aria-label={`Mark ${n.title} as read`}
+                  className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white/80 transition hover:bg-white/20 hover:text-white"
+                >
+                  <Check className="size-4" />
+                </button>
+              </div>
             ))
           ) : (
             <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">

@@ -63,6 +63,8 @@ type AppShellProps = {
   /** The signed-in person: shown as a profile chip in the header. */
   userName?: string;
   userSubtitle?: string;
+  /** Show the signed-in person's card on the right of the header. */
+  showProfile?: boolean;
   /** Alerts for the bell in the header. */
   notifications?: AppNotification[];
   /** Live numbers shown in the middle of the header, e.g. today's sales. */
@@ -82,7 +84,7 @@ export function AppShell({
   onLogout,
   pageTitle,
   userName,
-  userSubtitle,
+  showProfile = false,
   notifications = [],
   headerStats = [],
   onRefresh,
@@ -106,8 +108,8 @@ export function AppShell({
   const pageTint = NAV_HUES[pageIndex % NAV_HUES.length];
 
   const displayName = (userName || "").trim();
-  const initialsOf = (name: string) =>
-    name
+  const initials =
+    displayName
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
@@ -115,6 +117,7 @@ export function AppShell({
       .join("") || "?";
   const hour = now?.getHours() ?? 12;
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
   return (
     <TooltipProvider delayDuration={0}>
       <SidebarProvider defaultOpen className="app-shell">
@@ -267,6 +270,18 @@ export function AppShell({
               </div>
 
               <div className="flex min-w-0 flex-1 items-center justify-center gap-2.5">
+                {showProfile && displayName ? (
+                  <div className="flex items-center gap-2.5 rounded-full border border-cyan-300/30 bg-[linear-gradient(100deg,rgba(34,211,238,0.18),rgba(168,85,247,0.24),rgba(244,114,182,0.16))] py-1 pl-1 pr-3.5 shadow-[0_8px_22px_-14px_rgba(34,211,238,0.9)]">
+                    <span className="relative flex size-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#22d3ee,#a855f7_60%,#f472b6)] font-display text-xs font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
+                      {initials}
+                      <span className="absolute -bottom-px -right-px size-2.5 rounded-full border-2 border-[#1a1252] bg-emerald-400" />
+                    </span>
+                    <div className="hidden min-w-0 items-baseline gap-2 sm:flex">
+                      <span className="hidden text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-cyan-100/70 lg:inline">{greeting}</span>
+                      <span className="whitespace-nowrap font-display text-[0.8rem] font-bold text-white">{displayName}</span>
+                    </div>
+                  </div>
+                ) : null}
                 {headerStats.map((stat) => (
                   <div
                     key={stat.label}
@@ -311,20 +326,6 @@ export function AppShell({
                 <BillingAlerts />
                 <TenantFeedbackCenter />
               </div>
-
-              {displayName ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-fuchsia-300/30 bg-[linear-gradient(120deg,rgba(168,85,247,0.3),rgba(244,114,182,0.2))] py-1.5 pl-1.5 pr-4 shadow-[0_10px_26px_-16px_rgba(192,38,211,0.9)]">
-                  <span className="relative flex size-11 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#fbbf24,#f472b6_55%,#a855f7)] font-display text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]">
-                    {initialsOf(displayName)}
-                    <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-[#1a1252] bg-emerald-400" />
-                  </span>
-                  <div className="hidden min-w-0 sm:block">
-                    <p className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-fuchsia-100/80">{greeting}</p>
-                    <p className="max-w-44 truncate font-display text-sm font-bold leading-tight text-white">{displayName}</p>
-                    {userSubtitle ? <p className="max-w-44 truncate text-[0.65rem] text-white/60">{userSubtitle}</p> : null}
-                  </div>
-                </div>
-              ) : null}
             </div>
           </header>
 

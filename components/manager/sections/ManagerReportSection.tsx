@@ -76,6 +76,37 @@ const purchaseColumns: ColumnDef<PurchaseData>[] = [
 
 export type ReportPeriod = "daily" | "monthly" | "quarterly" | "half-year" | "annually";
 
+/** First and last day of the chosen period, plus a short label for headings. */
+export function reportPeriodBounds(
+  reportMode: ReportPeriod,
+  reportDay: string,
+  reportMonth: string,
+  reportYear: string,
+  reportQuarter: string,
+  reportHalf: string,
+) {
+  const year = Number(reportYear) || new Date().getFullYear();
+  const [dy, dm, dd] = reportDay.split("-").map(Number);
+  const [my, mm] = reportMonth.split("-").map(Number);
+  const month = (y: number, m: number) => new Date(y, m, 1);
+  switch (reportMode) {
+    case "daily":
+      return { hourly: true, start: new Date(dy, dm - 1, dd), end: new Date(dy, dm - 1, dd), label: format(new Date(dy, dm - 1, dd), "PP") };
+    case "monthly":
+      return { hourly: false, start: month(my, mm - 1), end: new Date(my, mm, 0), label: format(month(my, mm - 1), "MMMM yyyy") };
+    case "quarterly": {
+      const q = Number(reportQuarter) || 1;
+      return { hourly: false, start: month(year, (q - 1) * 3), end: new Date(year, q * 3, 0), label: `Q${q} ${year}` };
+    }
+    case "half-year": {
+      const h = Number(reportHalf) || 1;
+      return { hourly: false, start: month(year, (h - 1) * 6), end: new Date(year, h * 6, 0), label: `${h === 1 ? "first" : "second"} half of ${year}` };
+    }
+    case "annually":
+      return { hourly: false, start: new Date(year, 0, 1), end: new Date(year, 11, 31), label: String(year) };
+  }
+}
+
 export function matchesReportPeriod(
   createdAt: string,
   reportMode: ReportPeriod,
@@ -379,17 +410,8 @@ export function ManagerReportSection({
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   }, [creditLines]);
 
-  const snapshot = useMemo(() => {
-    const units = medicines.reduce((s, m) => s + toNumber(m.quantity), 0);
-    const costValue = medicines.reduce((s, m) => s + stockCostValue(m), 0);
-    const retailValue = medicines.reduce((s, m) => s + toNumber(m.quantity) * toNumber(m.price), 0);
-    const outOfStock = medicines.filter((m) => toNumber(m.quantity) <= 0).length;
-    const lowStock = medicines.filter((m) => toNumber(m.quantity) > 0 && toNumber(m.quantity) <= 5).length;
-    return { units, costValue, retailValue, margin: retailValue - costValue, outOfStock, lowStock };
-  }, [medicines]);
-
-  const unpaidInvoices = invoices.filter((invoice) => invoice.invoice_status === "unpaid");
-  const unpaidInvoiceTotal = unpaidInvoices.reduce((s, i) => s + toNumber(i.invoice_amount), 0);
+  const periodUnpaid = invoices.filter((invoice) => invoice.invoice_status === "unpaid" && inPeriod(invoice.invoice_date || invoice.created_at));
+  const periodUnpaidTotal = periodUnpaid.reduce((s, i) => s + toNumber(i.invoice_amount), 0);
   const topSellers = [...movement.fastList].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
   return (
@@ -485,13 +507,17 @@ export function ManagerReportSection({
         </div>
       </WorkspacePanel>
 
-      <PharmacyHealthOverview purchases={purchases} medicines={medicines} />
+      <PharmacyHealthOverview
+        purchases={filteredPurchases}
+        medicines={medicines}
+        period={reportPeriodBounds(reportMode, reportDay, reportMonth, reportYear, reportQuarter, reportHalf)}
+      />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <WorkspaceStat label="Units in stock" value={snapshot.units.toLocaleString()} icon={Wallet} hint={`${snapshot.outOfStock} out · ${snapshot.lowStock} low`} />
-        <WorkspaceStat label="Stock value (cost)" value={formatCurrency(snapshot.costValue)} icon={BadgeDollarSign} />
-        <WorkspaceStat label="Stock value (retail)" value={formatCurrency(snapshot.retailValue)} icon={TrendingUp} hint={`Potential margin ${formatCurrency(snapshot.margin)}`} />
-        <WorkspaceStat label="Unpaid invoices" value={formatCurrency(unpaidInvoiceTotal)} icon={AlertTriangle} hint={`${unpaidInvoices.length} invoice${unpaidInvoices.length === 1 ? "" : "s"}`} />
+        <WorkspaceStat label="Units sold" value={overview.totalUnits.toLocaleString()} icon={Wallet} hint={`${filteredPurchases.length} sale line${filteredPurchases.length === 1 ? "" : "s"}`} />
+        <WorkspaceStat label="Cost of goods sold" value={formatCurrency(overview.totalSales - overview.totalProfit)} icon={BadgeDollarSign} hint="What the sold stock cost" />
+        <WorkspaceStat label="Profit margin" value={`${overview.totalSales > 0 ? ((overview.totalProfit / overview.totalSales) * 100).toFixed(1) : "0.0"}%`} icon={TrendingUp} hint={`Profit ${formatCurrency(overview.totalProfit)}`} />
+        <WorkspaceStat label="Unpaid invoices" value={formatCurrency(periodUnpaidTotal)} icon={AlertTriangle} hint={`${periodUnpaid.length} invoice${periodUnpaid.length === 1 ? "" : "s"} dated in this period`} />
       </div>
 
       <ReportRuleImpact purchases={filteredPurchases} pendingSales={filteredPending} ruleCounts={ruleCounts} />

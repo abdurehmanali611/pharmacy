@@ -231,6 +231,7 @@ export default function PharmacistView() {
       pageTitle={pageMeta.title}
       userName={agentName}
       userSubtitle="Sales agent"
+      showProfile
       notifications={notifications}
       headerStats={headerStats}
       onRefresh={loadData}

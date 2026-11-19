@@ -436,12 +436,13 @@ export async function createSalesAgents(
 
 export async function updateSalesAgent(
   id: number | string,
-  data: { full_name: string; password?: string },
+  data: { full_name: string; username?: string; password?: string },
   setLoading: (loading: boolean) => void,
 ) {
   try {
     setLoading(true);
-    const payload: { full_name: string; password?: string } = { full_name: data.full_name };
+    const payload: { full_name: string; username?: string; password?: string } = { full_name: data.full_name };
+    if (data.username) payload.username = data.username;
     if (data.password) payload.password = data.password;
     const response = await api.patch(`/user/${id}/`, payload);
     toast.success("Sales agent updated");
