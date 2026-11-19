@@ -22,19 +22,19 @@ export function ApexMark({ className, variant = "compact" }: ApexMarkProps) {
         aria-label={`${APEX.name} — visit website`}
         className={cn(
           "group relative block overflow-hidden rounded-2xl border border-apex-orange/20",
-          "bg-[linear-gradient(145deg,rgba(232,149,30,0.12),rgba(11,25,46,0.4)_55%,rgba(6,14,26,0.85))]",
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_32px_-20px_rgba(232,149,30,0.35)]",
-          "transition-all duration-300 hover:border-apex-orange/35 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_16px_40px_-18px_rgba(232,149,30,0.45)]",
+          "bg-[linear-gradient(145deg,rgba(168,85,247,0.12),rgba(13,11,43,0.4)_55%,rgba(6,5,26,0.85))]",
+          "shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_32px_-20px_rgba(168,85,247,0.35)]",
+          "transition-all duration-300 hover:border-apex-orange/35 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_16px_40px_-18px_rgba(168,85,247,0.45)]",
           className,
         )}
       >
         <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-apex-orange/20 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(232,149,30,0.55),transparent)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(168,85,247,0.55),transparent)]" />
 
         <div className="relative flex items-start gap-3 p-3.5">
           <div className="relative shrink-0">
             <div className="absolute inset-0 rounded-xl bg-apex-orange/25 blur-md" />
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-apex-orange/30 bg-[#060e1a] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-apex-orange/30 bg-[#06051a] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
               <Image
                 src={APEX.logo}
                 alt={APEX.name}
@@ -46,7 +46,7 @@ export function ApexMark({ className, variant = "compact" }: ApexMarkProps) {
           </div>
 
           <div className="min-w-0 flex-1 pt-0.5">
-            <p className="text-[0.56rem] font-black uppercase tracking-[0.28em] text-apex-orange-light/75">
+            <p className="text-[0.56rem] font-bold uppercase tracking-[0.28em] text-apex-orange-light/75">
               Powered by
             </p>
             <p className="mt-0.5 truncate font-display text-sm font-semibold text-white transition group-hover:text-white">
@@ -83,7 +83,7 @@ export function ApexMark({ className, variant = "compact" }: ApexMarkProps) {
     >
       <ApexLogo size="sm" showLink={false} className="h-7" />
       <div className="min-w-0">
-        <p className="text-[0.58rem] font-black uppercase tracking-[0.26em] text-white/35">
+        <p className="text-[0.58rem] font-bold uppercase tracking-[0.26em] text-white/35">
           Powered by
         </p>
         <p className="truncate text-xs font-semibold text-white/75 transition group-hover:text-white">
@@ -104,7 +104,7 @@ export function ApexMarkIcon({ className }: { className?: string }) {
       aria-label={`${APEX.name} — visit website`}
       className={cn(
         "flex h-9 w-9 items-center justify-center rounded-xl border border-apex-orange/25",
-        "bg-[linear-gradient(145deg,rgba(232,149,30,0.16),rgba(6,14,26,0.9))]",
+        "bg-[linear-gradient(145deg,rgba(168,85,247,0.16),rgba(6,5,26,0.9))]",
         "shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-apex-orange/40 hover:bg-apex-orange/12",
         className,
       )}

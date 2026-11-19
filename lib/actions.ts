@@ -192,6 +192,7 @@ api.interceptors.response.use(
 export interface UserData {
     id: string;
     username: string;
+    full_name?: string;
     password: string;
     pharmacy_name: string;
     role: string;
@@ -230,6 +231,12 @@ export interface MedicineData {
     supplier_phone?: string;
     supplier_email?: string;
     supplier_name: string;
+    received_quantity?: number;
+    paid_amount?: number | string;
+    total_cost?: number | string;
+    credit_amount?: number | string;
+    payment_status?: "paid" | "credit";
+    created_at?: string;
 }
 
 export interface addMedicine {
@@ -243,6 +250,7 @@ export interface addMedicine {
     description: string;
     batch_number: string;
     image_url?: string;
+    paid_amount?: number;
 }
 
 export interface updateMedicine extends addMedicine {
@@ -251,8 +259,15 @@ export interface updateMedicine extends addMedicine {
 
 export interface PurchaseData {
     id: string;
+    medicine_id?: number | null;
     medicine_name: string;
     quantity: number;
+    sold_by_id?: number | null;
+    sold_by_name?: string;
+    customer_name?: string;
+    discount_percent?: number | string | null;
+    list_price?: number | string | null;
+    rule_trigger?: string;
     price: number;
     cost_price: number;
     total_price: number;
@@ -275,6 +290,7 @@ export interface updatePurchase extends purchaseMedicine {
 
 export interface saleCartPayload {
   items: purchaseMedicine[];
+  customer_name?: string;
 }
 
 export interface SupplierData {
@@ -399,6 +415,44 @@ export async function EditUser(data: updateUser, setLoading: (loading: boolean) 
   }
 }
 
+export type SalesAgentInput = { full_name: string; password: string };
+
+export async function createSalesAgents(
+  username: string,
+  items: SalesAgentInput[],
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const response = await api.post("/user/bulk_create/", { username, items });
+    toast.success(`${items.length} sales agent${items.length === 1 ? "" : "s"} created`);
+    return response.data as UserData[];
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to create sales agents"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function updateSalesAgent(
+  id: number | string,
+  data: { full_name: string; password?: string },
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const payload: { full_name: string; password?: string } = { full_name: data.full_name };
+    if (data.password) payload.password = data.password;
+    const response = await api.patch(`/user/${id}/`, payload);
+    toast.success("Sales agent updated");
+    return response.data as UserData;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to update sales agent"));
+  } finally {
+    setLoading(false);
+  }
+}
+
 export async function deleteUser(id: number, setLoading: (loading: boolean) => void) {
   try {
     setLoading(true);
@@ -424,6 +478,9 @@ export async function Login(
     localStorage.setItem("token", access);
     localStorage.setItem("refresh", refresh);
     localStorage.setItem("Role", user.role);
+    localStorage.setItem("FullName", user.full_name ?? "");
+    localStorage.setItem("UserId", String(user.id ?? ""));
+    localStorage.setItem("Username", user.username ?? "");
     localStorage.setItem("Pharmacy", user.pharmacy_name);
     localStorage.setItem("Logo", user.logoUrl);
     localStorage.setItem("PharmacyTin", user.pharmacy_tin);
@@ -470,6 +527,49 @@ export async function Logout() {
   delete api.defaults.headers.common["Authorization"];
   toast.success("Logged out successfully");
   window.location.href = "/";
+}
+
+export type StockLossKind = "damaged_wasted";
+
+export type StockLossData = {
+  id: number;
+  medicine_id: number | null;
+  medicine_name: string;
+  batch_number: string;
+  kind: StockLossKind;
+  quantity: number;
+  cost_price: number | string;
+  value: number | string;
+  expiry_date: string | null;
+  recorded_by: string;
+  note: string;
+  created_at: string;
+};
+
+export async function fetchStockLosses() {
+  try {
+    const response = await api.get("/medicines/losses/");
+    return unwrapResults<StockLossData>(response.data);
+  } catch {
+    // Optional data: if the endpoint is not available yet, the report simply shows no write-offs.
+    return [] as StockLossData[];
+  }
+}
+
+export async function registerStockLoss(
+  data: { kind?: StockLossKind; items: { medicine_id: number; quantity: number }[]; note?: string },
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const response = await api.post("/medicines/register_loss/", data);
+    toast.success(response.data?.detail ?? "Stock updated");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to register stock loss"));
+  } finally {
+    setLoading(false);
+  }
 }
 
 export async function createMedicine(data: addMedicine, setLoading: (loading: boolean) => void) {
@@ -539,6 +639,8 @@ type PaginatedResponse<T> = {
   next: string | null;
   previous: string | null;
   results: T[];
+  /** Set when the requested page no longer existed and the first page was returned instead. */
+  adjusted_page?: number;
 };
 
 export async function fetchMedicinePage(params?: {
@@ -560,7 +662,13 @@ export async function fetchMedicinePage(params?: {
     });
     return response.data;
   } catch (error: any) {
-    toast.error(getApiErrorMessage(error, "Failed to fetch medicines"));
+    // A page that no longer exists (e.g. after deleting the last row on it) is not an error:
+    // quietly fall back to the first page instead of toasting "Not found" again and again.
+    if (error?.response?.status === 404 && (params?.page ?? 1) > 1) {
+      const first = await fetchMedicinePage({ ...params, page: 1 });
+      return first ? { ...first, adjusted_page: 1 } : first;
+    }
+    toast.error(getApiErrorMessage(error, "Failed to fetch medicines"), { id: "fetch-medicines" });
   }
 }
 
@@ -685,10 +793,277 @@ export async function CreateBulkPurchase(data: saleCartPayload, setLoading: (loa
   try {
     setLoading(true);
     const response = await api.post("/purchases/bulk_create/", data);
-    toast.success(response.data?.detail ?? "Sales recorded");
+    if (response.status === 202 || response.data?.pending) {
+      toast.message(response.data?.detail ?? "Sale held for manager approval");
+    } else {
+      toast.success(response.data?.detail ?? "Sales recorded");
+    }
     return response.data;
   } catch (error: any) {
     toast.error(getApiErrorMessage(error, "Failed to record sales"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export type QuantitySaleRuleData = {
+  id: number;
+  medicine_id: number;
+  medicine_name: string;
+  threshold: number;
+  final: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ApprovalRequiredMedicineData = {
+  id: number;
+  medicine_id: number;
+  medicine_name: string;
+  medicine_price: number;
+  medicine_quantity: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PendingSaleLineData = {
+  id: number;
+  medicine_id: number | null;
+  medicine_name: string;
+  original_quantity: number;
+  original_price: number;
+  trigger: "none" | "quantity_band" | "needs_approval";
+  is_attachment: boolean;
+  parent_line: number | null;
+  manager_unit_price: number | null;
+  qty_threshold: number | null;
+  qty_final: number | null;
+  pharmacist_quantity: number | null;
+  discount_percent: number | string | null;
+  effective_price: number;
+  attachments: PendingSaleLineData[];
+};
+
+export type PendingSaleData = {
+  id: number;
+  pharmacy_tin: string;
+  status:
+    | "awaiting_manager"
+    | "awaiting_pharmacist"
+    | "rejected"
+    | "settled"
+    | "failed";
+  created_by: number | null;
+  created_by_username: string;
+  reviewed_by: number | null;
+  manager_reject_reason: string;
+  customer_name: string;
+  lines: PendingSaleLineData[];
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchQuantitySaleRules() {
+  const response = await api.get("/sales-approvals/quantity-rules/");
+  return unwrapResults<QuantitySaleRuleData>(response.data);
+}
+
+export async function createBulkQuantitySaleRules(
+  items: { medicine_id: number; threshold: number; final?: number | null }[],
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const response = await api.post("/sales-approvals/quantity-rules/bulk_create/", { items });
+    toast.success("Quantity rules saved");
+    return unwrapResults<QuantitySaleRuleData>(response.data);
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to save quantity rules"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function deleteQuantitySaleRule(id: number | string) {
+  try {
+    await api.delete(`/sales-approvals/quantity-rules/${id}/`);
+    toast.success("Quantity rule removed");
+    return true;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to remove quantity rule"));
+    return false;
+  }
+}
+
+export async function fetchApprovalRequiredMedicines() {
+  const response = await api.get("/sales-approvals/approval-required/");
+  return unwrapResults<ApprovalRequiredMedicineData>(response.data);
+}
+
+export async function createBulkApprovalRequired(
+  medicine_ids: number[],
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const response = await api.post("/sales-approvals/approval-required/bulk_create/", {
+      medicine_ids,
+    });
+    toast.success("Needs-approval items saved");
+    return unwrapResults<ApprovalRequiredMedicineData>(response.data);
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to mark items for approval"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function deleteApprovalRequiredMedicine(id: number | string) {
+  try {
+    await api.delete(`/sales-approvals/approval-required/${id}/`);
+    toast.success("Removed from needs-approval list");
+    return true;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to remove item"));
+    return false;
+  }
+}
+
+export type DiscountRole = "health_professional" | "other";
+
+export type DiscountRuleData = {
+  id: number;
+  customer_name: string;
+  role: DiscountRole;
+  specific_role: string;
+  medicine_ids: number[];
+  medicine_names: string[];
+  percentage: number | string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DiscountRulePayload = {
+  customer_name: string;
+  role: DiscountRole;
+  specific_role?: string;
+  medicine_ids: number[];
+  percentage: number;
+};
+
+export async function fetchDiscountRules() {
+  const response = await api.get("/sales-approvals/discount-rules/");
+  return unwrapResults<DiscountRuleData>(response.data);
+}
+
+export async function createBulkDiscountRules(
+  items: DiscountRulePayload[],
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const response = await api.post("/sales-approvals/discount-rules/bulk_create/", { items });
+    toast.success("Discount rules saved");
+    return unwrapResults<DiscountRuleData>(response.data);
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to save discount rules"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function updateDiscountRule(
+  id: number | string,
+  data: DiscountRulePayload,
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const response = await api.put(`/sales-approvals/discount-rules/${id}/`, data);
+    toast.success("Discount rule updated");
+    return response.data as DiscountRuleData;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to update discount rule"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function deleteDiscountRule(id: number | string) {
+  try {
+    await api.delete(`/sales-approvals/discount-rules/${id}/`);
+    toast.success("Discount rule removed");
+    return true;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to remove discount rule"));
+    return false;
+  }
+}
+
+export async function fetchPendingSales(status?: string) {
+  const response = await api.get("/sales-approvals/pending-sales/", {
+    params: status ? { status } : undefined,
+  });
+  return unwrapResults<PendingSaleData>(response.data);
+}
+
+export async function managerDecidePendingSale(
+  id: number | string,
+  payload: {
+    action: "approve" | "reject";
+    reject_reason?: string;
+    line_updates?: {
+      id: number;
+      manager_unit_price?: number | null;
+      qty_threshold?: number | null;
+      qty_final?: number | null;
+    }[];
+    attachments?: {
+      parent_line_id: number;
+      medicine_id?: number | null;
+      medicine_name: string;
+      qty_threshold: number;
+      qty_final?: number | null;
+      manager_unit_price?: number | null;
+      original_price?: number;
+    }[];
+  },
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const response = await api.post(`/sales-approvals/pending-sales/${id}/manager_decide/`, payload);
+    toast.success(payload.action === "reject" ? "Sale rejected" : "Sent to pharmacist for confirmation");
+    return response.data as PendingSaleData;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to process pending sale"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function pharmacistConfirmPendingSale(
+  id: number | string,
+  payload: {
+    action: "accept" | "reject";
+    lines?: { id: number; quantity: number }[];
+  },
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const response = await api.post(
+      `/sales-approvals/pending-sales/${id}/pharmacist_confirm/`,
+      payload,
+    );
+    toast.success(
+      payload.action === "accept"
+        ? (response.data?.detail ?? "Sale settled")
+        : "Sale cancelled",
+    );
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to confirm pending sale"));
   } finally {
     setLoading(false);
   }

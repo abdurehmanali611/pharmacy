@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, Plus, Trash2, Receipt } from "lucide-react";
+import { CalendarDays, Trash2, Receipt } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 
 import { CloudinaryImageUploader } from "@/components/customFormField";
+import { AddLineBar, LineNumber } from "@/components/manager/kit";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
@@ -16,6 +17,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { createBatchInvoices, type createInvoice, type SupplierData } from "@/lib/actions";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+const LINE_TINTS = ["violet", "cyan", "pink", "emerald", "amber", "sky"] as const;
 
 type InvoiceLine = {
   id: string;
@@ -41,10 +44,10 @@ const createEmptyLine = (): InvoiceLine => ({
   invoice_image: "",
 });
 
-const fieldLabelClass = "text-[11px] font-semibold text-white/70";
+const fieldLabelClass = "text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-200";
 const fieldControlClass = "h-10 border-white/10 bg-white/[0.04] text-sm";
 const radioCardClass =
-  "flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-[#e8951e]/12 bg-white/[0.035] px-3 py-2 text-center transition has-[[data-state=checked]]:ring-2";
+  "flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-[#a855f7]/12 bg-white/[0.035] px-3 py-2 text-center transition has-[[data-state=checked]]:ring-2";
 const radioLabelClass = "flex items-center justify-center text-center text-xs font-bold";
 
 const radioToneClass = {
@@ -125,15 +128,15 @@ export function BatchInvoiceDialog({
   };
 
   return (
-    <section className="overflow-hidden rounded-xl border border-white/10 bg-[#09111f]/90 p-5 text-white shadow-xl sm:p-6">
+    <section className="workspace-panel-surface overflow-hidden p-5 text-white sm:p-6">
         <header className="border-b border-white/10 pb-4">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-apex-orange/30 bg-apex-orange/10 text-apex-orange-light">
+            <span className="tint-icon tint-sky flex size-11 shrink-0 items-center justify-center rounded-2xl">
               <Receipt className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-lg font-bold">Invoice intake</h2>
-              <p className="text-xs text-white/60">Record multiple supplier bills or sales invoices with individual dates and payment details.</p>
+              <h2 className="font-display text-xl font-bold">Invoice intake</h2>
+              <p className="text-sm text-white/60">Record multiple supplier bills or sales invoices with individual dates and payment details.</p>
             </div>
           </div>
         </header>
@@ -143,12 +146,10 @@ export function BatchInvoiceDialog({
             {lines.map((line, index) => (
               <div
                 key={line.id}
-                className="relative rounded-xl border border-white/10 bg-white/3 p-4 transition-colors hover:border-white/20 sm:p-5"
+                className={`workspace-inner-surface relative p-5 tint-${LINE_TINTS[index % LINE_TINTS.length]}`}
               >
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/80">
-                    Invoice #{index + 1}
-                  </span>
+                  <span className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.16em] text-white/85"><LineNumber index={index} />Invoice</span>
                   {lines.length > 1 ? (
                     <Button
                       type="button"
@@ -328,15 +329,7 @@ export function BatchInvoiceDialog({
             ))}
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addLine}
-            className="w-full gap-2 border-dashed border-white/20 bg-white/2 py-5 text-sm font-semibold text-white/80 hover:border-white/40 hover:bg-white/6 hover:text-white"
-          >
-            <Plus className="h-4 w-4" />
-            Add line
-          </Button>
+          <AddLineBar label="Add another line" onClick={addLine} />
         </div>
 
         <footer className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-4 sm:flex-row">
@@ -353,7 +346,7 @@ export function BatchInvoiceDialog({
               type="button"
               disabled={submitting}
               onClick={handleSubmit}
-              className="gap-2 bg-apex-orange font-semibold text-white hover:bg-apex-orange-light"
+              className="min-w-52 gap-2"
             >
               {submitting ? "Registering..." : `Register All ${lines.length} Invoices`}
             </Button>

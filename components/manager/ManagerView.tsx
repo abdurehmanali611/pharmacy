@@ -1,24 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { parseISO } from "date-fns";
+import { AlertTriangle, BadgeDollarSign, ClipboardCheck, HandCoins, Hourglass, Package, TimerOff, TrendingUp } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 
 import { AppShell } from "@/components/chrome/AppShell";
+import type { HeaderStat } from "@/components/chrome/AppShell";
+import type { AppNotification } from "@/components/chrome/HeaderActions";
+import { formatCurrency } from "@/lib/format";
+import { creditDue, daysToExpiry, toNumber } from "@/lib/inventory";
 import { getManagerPageMeta, MANAGER_NAV } from "@/components/manager/navigation";
 import { CashoutManagementSection } from "@/components/manager/sections/CashoutManagementSection";
+import { DiscountRulesSection } from "@/components/manager/sections/DiscountRulesSection";
 import { CredentialManagementSection } from "@/components/manager/sections/CredentialManagementSection";
 import { InvoiceManagementSection } from "@/components/manager/sections/InvoiceManagementSection";
+import { SalesAgentReportsSection } from "@/components/manager/sections/SalesAgentReportsSection";
+import { InventoryPaymentSection } from "@/components/manager/sections/InventoryPaymentSection";
 import { ManagerReportSection } from "@/components/manager/sections/ManagerReportSection";
 import { MedicineManagementSection } from "@/components/manager/sections/MedicineManagementSection";
+import { PendingApprovalsSection } from "@/components/manager/sections/PendingApprovalsSection";
+import { SalesRulesSection } from "@/components/manager/sections/SalesRulesSection";
 import { SupplierManagementSection } from "@/components/manager/sections/SupplierManagementSection";
 import type { ManagerSectionKey } from "@/components/manager/types";
 import {
   ChangePassword,
   createCashoutRecord,
-  CreateUser,
   deleteCashoutRecord,
   createInvoiceRecord,
   createMedicine,
@@ -31,20 +40,29 @@ import {
   editInvoiceRecord,
   EditMedicine,
   editSupplierRecord,
-  EditUser,
+  fetchApprovalRequiredMedicines,
   fetchCashouts,
+  fetchDiscountRules,
   fetchMedicine,
   fetchInvoices,
   fetchMedicinePage,
+  fetchPendingSales,
   fetchPurchase,
+  fetchStockLosses,
+  fetchQuantitySaleRules,
   fetchSuppliers,
   fetchUser,
   importMedicinesExcel,
   Logout,
+  type ApprovalRequiredMedicineData,
   type CashoutData,
+  type DiscountRuleData,
   type InvoiceData,
   type MedicineData,
+  type PendingSaleData,
   type PurchaseData,
+  type StockLossData,
+  type QuantitySaleRuleData,
   type SupplierData,
   type UserData,
 } from "@/lib/actions";
@@ -54,14 +72,12 @@ import {
   addMedicine,
   addSupplier,
   changePasswordWithConfirm,
-  login,
-  pharmacistCredential,
 } from "@/lib/validations";
 
 export default function ManagerView() {
   const [pharmacy, setPharmacy] = useState("");
   const [logo, setLogo] = useState("");
-  const [pharmacyTin, setPharmacyTin] = useState("");
+  const [username, setUsername] = useState("");
   const [selected, setSelected] = useState<ManagerSectionKey>("Report");
   const [medicines, setMedicines] = useState<MedicineData[]>([]);
   const [allMedicines, setAllMedicines] = useState<MedicineData[]>([]);
@@ -74,13 +90,17 @@ export default function ManagerView() {
   const [supplierToEdit, setSupplierToEdit] = useState<SupplierData | null>(null);
   const [invoiceToEdit, setInvoiceToEdit] = useState<InvoiceData | null>(null);
   const [cashoutToEdit, setCashoutToEdit] = useState<CashoutData | null>(null);
-  const [userToEdit, setUserToEdit] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(false);
   const [importingMedicines, setImportingMedicines] = useState(false);
   const [medicineCount, setMedicineCount] = useState(0);
   const [medicinePage, setMedicinePage] = useState(1);
   const [medicineSearch, setMedicineSearch] = useState("");
   const [medicineCreatedDate, setMedicineCreatedDate] = useState("");
+  const [quantityRules, setQuantityRules] = useState<QuantitySaleRuleData[]>([]);
+  const [approvalRequired, setApprovalRequired] = useState<ApprovalRequiredMedicineData[]>([]);
+  const [pendingSales, setPendingSales] = useState<PendingSaleData[]>([]);
+  const [discountRules, setDiscountRules] = useState<DiscountRuleData[]>([]);
+  const [stockLosses, setStockLosses] = useState<StockLossData[]>([]);
 
   const medicineFormDefaults: z.infer<typeof addMedicine> = useMemo(
     () => ({
@@ -144,15 +164,6 @@ export default function ManagerView() {
     },
   });
 
-  const credentialForm = useForm<z.infer<typeof pharmacistCredential>>({
-    resolver: zodResolver(pharmacistCredential),
-    defaultValues: {
-      username: "",
-      password: "",
-      confirm_password: "",
-    },
-  });
-
   const passwordForm = useForm<z.infer<typeof changePasswordWithConfirm>>({
     resolver: zodResolver(changePasswordWithConfirm),
     defaultValues: {
@@ -164,6 +175,8 @@ export default function ManagerView() {
 
   const pharmacists = users.filter((user) => user.role.toLowerCase() === "pharmacist");
 
+  const medicineRequestRef = useRef(0);
+
   const loadMedicinesPage = async (opts?: {
     page?: number;
     search?: string;
@@ -173,26 +186,47 @@ export default function ManagerView() {
     const search = opts?.search ?? medicineSearch;
     const createdDate = opts?.createdDate ?? medicineCreatedDate;
 
+    const requestId = ++medicineRequestRef.current;
     const response = await fetchMedicinePage({
       page,
       pageSize: 4,
-      search: search || undefined,
+      search: search.trim() || undefined,
       createdDate: createdDate || undefined,
       ordering: "-created_at",
     });
 
+    // A slower, older request must never overwrite a newer one.
+    if (requestId !== medicineRequestRef.current) return;
     setMedicines(response?.results ?? []);
     setMedicineCount(response?.count ?? 0);
+    if (response?.adjusted_page) setMedicinePage(response.adjusted_page);
   };
 
   const loadAll = async () => {
-    const [purchaseData, cashoutData, userData, supplierData, invoiceData, medicineData] = await Promise.all([
+    const [
+      purchaseData,
+      cashoutData,
+      userData,
+      supplierData,
+      invoiceData,
+      medicineData,
+      quantityRuleData,
+      approvalRequiredData,
+      pendingSaleData,
+      discountRuleData,
+      stockLossData,
+    ] = await Promise.all([
       fetchPurchase(),
       fetchCashouts(),
       fetchUser(),
       fetchSuppliers(),
       fetchInvoices(),
       fetchMedicine(),
+      fetchQuantitySaleRules(),
+      fetchApprovalRequiredMedicines(),
+      fetchPendingSales(),
+      fetchDiscountRules(),
+      fetchStockLosses(),
     ]);
 
     setPurchases(purchaseData ?? []);
@@ -201,6 +235,11 @@ export default function ManagerView() {
     setSuppliers(supplierData ?? []);
     setInvoices(invoiceData ?? []);
     setAllMedicines(medicineData ?? []);
+    setQuantityRules(quantityRuleData ?? []);
+    setApprovalRequired(approvalRequiredData ?? []);
+    setPendingSales(pendingSaleData ?? []);
+    setDiscountRules(discountRuleData ?? []);
+    setStockLosses(stockLossData ?? []);
     await loadMedicinesPage({ page: 1 });
     setMedicinePage(1);
   };
@@ -208,24 +247,19 @@ export default function ManagerView() {
   useEffect(() => {
     setPharmacy(localStorage.getItem("Pharmacy") ?? "");
     setLogo(localStorage.getItem("Logo") ?? "");
-    setPharmacyTin(localStorage.getItem("PharmacyTin") ?? "");
+    setUsername(localStorage.getItem("FullName") || localStorage.getItem("Username") || "");
     void loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Wait for typing to pause before searching; page, search and date all funnel through here.
   useEffect(() => {
-    void loadMedicinesPage({ page: medicinePage });
+    const handle = setTimeout(() => {
+      void loadMedicinesPage({ page: medicinePage, search: medicineSearch, createdDate: medicineCreatedDate });
+    }, medicineSearch ? 300 : 0);
+    return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [medicinePage]);
-
-  useEffect(() => {
-    if (selected !== "credentials") return;
-    if (!userToEdit && pharmacists.length === 1) {
-      const existing = pharmacists[0];
-      setUserToEdit(existing);
-      credentialForm.reset({ username: existing.username, password: "" });
-    }
-  }, [credentialForm, pharmacists, selected, userToEdit]);
+  }, [medicinePage, medicineSearch, medicineCreatedDate]);
 
   const handleSaveMedicine = async (data: z.infer<typeof addMedicine>) => {
     setLoading(true);
@@ -256,6 +290,7 @@ export default function ManagerView() {
       price: Number(medicine.price),
       cost: Number(medicine.cost),
       quantity: Number(medicine.quantity),
+      paid_amount: Number(medicine.paid_amount ?? Number(medicine.quantity) * Number(medicine.cost)),
       batch_number: medicine.batch_number ?? "",
       expiry_date: medicine.expiry_date ? parseISO(medicine.expiry_date) : null,
       description: medicine.description,
@@ -364,43 +399,6 @@ export default function ManagerView() {
     }
   };
 
-  const handleSaveCredential = async (data: z.infer<typeof login>) => {
-    setLoading(true);
-    try {
-      if (userToEdit) {
-        await EditUser(
-          {
-            id: userToEdit.id,
-            username: data.username,
-            password: data.password,
-            pharmacy_name: pharmacy,
-            role: "Pharmacist",
-            logoUrl: logo,
-            pharmacy_tin: pharmacyTin,
-          },
-          setLoading,
-        );
-        setUserToEdit(null);
-      } else {
-        await CreateUser(
-          {
-            username: data.username,
-            password: data.password,
-            pharmacy_name: pharmacy,
-            role: "Pharmacist",
-            logoUrl: logo,
-            pharmacy_tin: pharmacyTin,
-          },
-          setLoading,
-        );
-      }
-      await loadAll();
-      credentialForm.reset();
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSaveCashout = async (data: z.infer<typeof addCashout>) => {
     setLoading(true);
     try {
@@ -434,10 +432,6 @@ export default function ManagerView() {
     try {
       await deleteUser(Number(id), setLoading);
       await loadAll();
-      if (userToEdit?.id === id) {
-        setUserToEdit(null);
-        credentialForm.reset();
-      }
     } finally {
       setLoading(false);
     }
@@ -458,6 +452,49 @@ export default function ManagerView() {
 
   const pageMeta = getManagerPageMeta(selected);
 
+  const headerStats: HeaderStat[] = (() => {
+    const todayKey = new Date().toDateString();
+    const today = purchases.filter((p) => new Date(p.created_at).toDateString() === todayKey);
+    const revenue = today.reduce((s, p) => s + toNumber(p.total_price), 0);
+    const profit = today.reduce((s, p) => s + toNumber(p.profit), 0);
+    const units = today.reduce((s, p) => s + toNumber(p.quantity), 0);
+    return [
+      { label: "Sales today", value: formatCurrency(revenue), icon: BadgeDollarSign, tint: "violet" },
+      { label: "Profit today", value: formatCurrency(profit), icon: TrendingUp, tint: "emerald" },
+      { label: "Units sold", value: units.toLocaleString(), icon: Package, tint: "cyan" },
+    ];
+  })();
+
+  const notifications: AppNotification[] = (() => {
+    const list: AppNotification[] = [];
+    const awaiting = pendingSales.filter((sale) => sale.status === "awaiting_manager").length;
+    if (awaiting) {
+      list.push({ id: `approvals-${awaiting}`, title: `${awaiting} sale${awaiting === 1 ? "" : "s"} waiting for approval`, description: "Held pharmacist sales need your decision.", tone: "amber", icon: ClipboardCheck, target: "approvals" });
+    }
+    const stocked = allMedicines.filter((m) => toNumber(m.quantity) > 0);
+    const expired = stocked.filter((m) => (daysToExpiry(m.expiry_date) ?? 1) < 0).length;
+    if (expired) {
+      list.push({ id: `expired-${expired}`, title: `${expired} expired item${expired === 1 ? "" : "s"} on the shelf`, description: "Remove or write off expired stock.", tone: "rose", icon: TimerOff, target: "Report" });
+    }
+    const soon = stocked.filter((m) => {
+      const days = daysToExpiry(m.expiry_date);
+      return days !== null && days >= 0 && days <= 30;
+    }).length;
+    if (soon) {
+      list.push({ id: `soon-${soon}`, title: `${soon} item${soon === 1 ? "" : "s"} expire within a month`, description: "Check the expiry watch in Reports.", tone: "amber", icon: Hourglass, target: "Report" });
+    }
+    const low = allMedicines.filter((m) => toNumber(m.quantity) <= 5).length;
+    if (low) {
+      list.push({ id: `low-${low}`, title: `${low} item${low === 1 ? "" : "s"} low or out of stock`, description: "Reorder soon to avoid missed sales.", tone: "cyan", icon: AlertTriangle, target: "medicines" });
+    }
+    const credit = allMedicines.filter((m) => creditDue(m) > 0.01);
+    if (credit.length) {
+      const total = credit.reduce((sum, m) => sum + creditDue(m), 0);
+      list.push({ id: `credit-${credit.length}-${Math.round(total)}`, title: `${formatCurrency(total)} owed on credit`, description: `${credit.length} stock line${credit.length === 1 ? "" : "s"} still to be paid, oldest first.`, tone: "violet", icon: HandCoins, target: "inventory_credit" });
+    }
+    return list;
+  })();
+
   return (
     <AppShell
       pharmacy={pharmacy}
@@ -468,6 +505,11 @@ export default function ManagerView() {
       onSelect={(key) => setSelected(key as typeof selected)}
       onLogout={Logout}
       pageTitle={pageMeta.title}
+      userName={username}
+      userSubtitle="Pharmacy manager"
+      notifications={notifications}
+      headerStats={headerStats}
+      onRefresh={loadAll}
     >
       <div className="relative mx-auto max-w-352 space-y-5">
       {selected === "Report" ? (
@@ -477,6 +519,23 @@ export default function ManagerView() {
           suppliers={suppliers}
           invoices={invoices}
           cashouts={cashouts}
+          stockLosses={stockLosses}
+          pendingSales={pendingSales}
+          ruleCounts={{ quantity: quantityRules.length, approval: approvalRequired.length, discount: discountRules.length }}
+        />
+      ) : null}
+
+      {selected === "agents" ? (
+        <SalesAgentReportsSection pharmacists={pharmacists} purchases={purchases} pendingSales={pendingSales} />
+      ) : null}
+
+      {selected === "inventory_all" || selected === "inventory_credit" || selected === "inventory_paid" ? (
+        <InventoryPaymentSection
+          mode={selected === "inventory_credit" ? "credit" : selected === "inventory_paid" ? "paid" : "all"}
+          medicines={allMedicines}
+          purchases={purchases}
+          stockLosses={stockLosses}
+          suppliers={suppliers}
         />
       ) : null}
 
@@ -495,12 +554,10 @@ export default function ManagerView() {
           onSearchChange={(value) => {
             setMedicineSearch(value);
             setMedicinePage(1);
-            void loadMedicinesPage({ page: 1, search: value });
           }}
           onCreatedDateChange={(value) => {
             setMedicineCreatedDate(value);
             setMedicinePage(1);
-            void loadMedicinesPage({ page: 1, createdDate: value });
           }}
           onSubmit={handleSaveMedicine}
           onRefresh={loadAll}
@@ -554,22 +611,12 @@ export default function ManagerView() {
 
       {selected === "credentials" ? (
         <CredentialManagementSection
-          credentialForm={credentialForm}
           passwordForm={passwordForm}
           pharmacists={pharmacists}
           loading={loading}
-          userToEdit={userToEdit}
-          onSubmitCredential={handleSaveCredential}
-          onEditUser={(user) => {
-            setUserToEdit(user);
-            credentialForm.reset({ username: user.username, password: "" });
-          }}
           onDeleteUser={handleDeleteCredential}
-          onCancelEdit={() => {
-            setUserToEdit(null);
-            credentialForm.reset();
-          }}
           onChangePassword={handleChangePassword}
+          onRefresh={loadAll}
         />
       ) : null}
 
@@ -593,6 +640,36 @@ export default function ManagerView() {
             setCashoutToEdit(null);
             cashoutForm.reset({ amount: 0, reason: "" });
           }}
+        />
+      ) : null}
+
+      {selected === "sales_rules" ? (
+        <SalesRulesSection
+          medicines={allMedicines}
+          quantityRules={quantityRules}
+          approvalRequired={approvalRequired}
+          loading={loading}
+          onRefresh={loadAll}
+        />
+      ) : null}
+
+      {selected === "discounts" ? (
+        <DiscountRulesSection
+          medicines={allMedicines}
+          discountRules={discountRules}
+          loading={loading}
+          onRefresh={loadAll}
+        />
+      ) : null}
+
+      {selected === "approvals" ? (
+        <PendingApprovalsSection
+          pendingSales={pendingSales}
+          medicines={allMedicines}
+          quantityRules={quantityRules}
+          approvalRequired={approvalRequired}
+          loading={loading}
+          onRefresh={loadAll}
         />
       ) : null}
       </div>

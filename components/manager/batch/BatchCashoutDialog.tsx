@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, Plus, Trash2, Wallet } from "lucide-react";
+import { Banknote, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { workspaceInnerPanelClass, workspacePanelClass } from "@/components/manager/workspace";
+import { AddLineBar, LineNumber } from "@/components/manager/kit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createBatchCashouts, type createCashout } from "@/lib/actions";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+const LINE_TINTS = ["violet", "cyan", "pink", "emerald", "amber", "sky"] as const;
 
 type CashoutLine = {
   id: string;
@@ -24,9 +27,9 @@ const createEmptyLine = (): CashoutLine => ({
   reason: "",
 });
 
-const fieldLabelClass = "text-[0.65rem] font-bold uppercase tracking-[0.14em] text-white/55";
+const fieldLabelClass = "text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-200";
 const fieldControlClass =
-  "h-12 rounded-xl border-white/12 bg-[#0b1726]/85 text-sm text-white shadow-inner shadow-black/10 placeholder:text-white/30 focus-visible:border-apex-orange/60 focus-visible:ring-apex-orange/20";
+  "h-12 rounded-xl border-white/12 bg-[#0c0a2a]/85 text-sm text-white shadow-inner shadow-black/10 placeholder:text-white/30 focus-visible:border-apex-orange/60 focus-visible:ring-apex-orange/20";
 
 export function BatchCashoutDialog({
   onSuccess,
@@ -81,13 +84,13 @@ export function BatchCashoutDialog({
 
   return (
     <section className={cn(workspacePanelClass, "text-white")}>
-      <header className="flex flex-col gap-5 border-b border-apex-orange/12 bg-[linear-gradient(105deg,rgba(232,149,30,0.1),transparent_68%)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <header className="flex flex-col gap-5 border-b border-apex-orange/12 bg-[linear-gradient(105deg,rgba(168,85,247,0.1),transparent_68%)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex items-center gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-apex-orange/35 bg-apex-orange/15 text-apex-orange-light shadow-[0_0_24px_-10px_rgba(232,149,30,0.8)]">
+          <span className="tint-icon tint-pink flex size-11 shrink-0 items-center justify-center rounded-2xl">
             <Wallet className="size-5" />
           </span>
           <div>
-            <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-apex-orange-light/80">
+            <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-apex-orange-light/80">
               Cash movement
             </p>
             <h2 className="mt-1 font-display text-lg font-bold tracking-tight text-white">
@@ -99,7 +102,7 @@ export function BatchCashoutDialog({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0b1726]/70 px-4 py-3 sm:min-w-56">
+        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0c0a2a]/70 px-4 py-3 sm:min-w-56">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-apex-orange/12 text-apex-orange-light">
             <Banknote className="size-4" />
           </span>
@@ -121,14 +124,13 @@ export function BatchCashoutDialog({
               key={line.id}
               className={cn(
                 workspaceInnerPanelClass,
-                "p-4 transition-colors hover:border-apex-orange/30 sm:p-5",
+                "p-5",
+                `tint-${LINE_TINTS[index % LINE_TINTS.length]}`,
               )}
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-apex-orange/20 bg-apex-orange/10 text-apex-orange-light">
-                    <span className="font-display text-sm font-bold">{String(index + 1).padStart(2, "0")}</span>
-                  </span>
+                  <LineNumber index={index} />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-white/90">
                       Cashout line {index + 1}
@@ -177,7 +179,7 @@ export function BatchCashoutDialog({
                   <label className={fieldLabelClass} htmlFor={`cashout-reason-${line.id}`}>
                     Reason / description <span className="text-apex-orange-light">*</span>
                   </label>
-                  <div className="rounded-2xl border border-white/8 bg-[#0b1726]/45 p-2 transition-colors focus-within:border-apex-orange/35 focus-within:bg-[#0b1726]/70">
+                  <div className="rounded-2xl border border-white/8 bg-[#0c0a2a]/45 p-2 transition-colors focus-within:border-apex-orange/35 focus-within:bg-[#0c0a2a]/70">
                     <Textarea
                       id={`cashout-reason-${line.id}`}
                       placeholder="Describe why this cash was withdrawn and what it was used for..."
@@ -196,15 +198,7 @@ export function BatchCashoutDialog({
           ))}
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={addLine}
-          className="h-12 w-full gap-2 rounded-xl border-dashed border-apex-orange/30 bg-apex-orange/[0.035] text-sm font-semibold text-apex-orange-light hover:border-apex-orange/55 hover:bg-apex-orange/10"
-        >
-          <Plus className="size-4" />
-          Add another cashout
-        </Button>
+        <AddLineBar label="Add another cashout" onClick={addLine} />
       </div>
 
       <footer className="flex flex-col gap-4 border-t border-white/8 bg-black/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -221,7 +215,7 @@ export function BatchCashoutDialog({
           type="button"
           disabled={submitting}
           onClick={handleSubmit}
-          className="h-11 w-full gap-2 rounded-xl bg-apex-orange px-5 font-bold text-white shadow-[0_8px_24px_-12px_rgba(232,149,30,0.8)] transition hover:bg-apex-orange-light sm:w-auto"
+          className="h-11 w-full gap-2 px-6 sm:w-auto"
         >
           <Wallet className="size-4" />
           {submitting

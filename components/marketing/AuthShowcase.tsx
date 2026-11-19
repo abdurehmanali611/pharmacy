@@ -23,7 +23,7 @@ export function AuthShowcase({
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-apex-orange/15 blur-3xl" />
 
       <div className="relative space-y-5">
-        <Badge className="w-fit border-apex-orange/25 bg-apex-orange/10 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.28em] text-apex-orange-light hover:bg-apex-orange/10">
+        <Badge className="w-fit border-apex-orange/25 bg-apex-orange/10 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.28em] text-apex-orange-light hover:bg-apex-orange/10">
           {sideLabel}
         </Badge>
         <div className="max-w-xl space-y-4">
@@ -40,7 +40,7 @@ export function AuthShowcase({
             key={label}
             className="rounded-[1.35rem] border border-white/10 bg-white/5 p-4 backdrop-blur-sm"
           >
-            <p className="text-[0.62rem] font-black uppercase tracking-[0.22em] text-apex-orange-light">
+            <p className="text-[0.62rem] font-bold uppercase tracking-[0.22em] text-apex-orange-light">
               {label}
             </p>
             <p className="mt-2 text-sm leading-6 text-white/50">{copy}</p>

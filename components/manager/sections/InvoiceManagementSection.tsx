@@ -4,21 +4,19 @@ import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import type { UseFormReturn } from "react-hook-form";
 import { Controller } from "react-hook-form";
-import { Banknote, FileText, Pencil, Receipt, Wallet } from "lucide-react";
+import { CalendarDays, Pencil, Receipt } from "lucide-react";
 import Image from "next/image";
 import type { z } from "zod";
 
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { ConfirmDeleteButton } from "@/components/manager/ConfirmDeleteButton";
+import { EmptyState, ListToolbar, SectionTitle, tableHeadClass } from "@/components/manager/kit";
 import { paginateItems, TablePagination } from "@/components/manager/TablePagination";
 import { BatchInvoiceDialog } from "@/components/manager/batch/BatchInvoiceDialog";
 import {
   workspaceInnerPanelClass,
   workspacePanelClass,
-  WorkspaceModuleHeader,
-  WorkspaceStat,
 } from "@/components/manager/workspace";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { FieldLabel } from "@/components/ui/field";
@@ -40,7 +38,7 @@ import type { InvoiceData, SupplierData } from "@/lib/actions";
 const INVOICE_PAGE_SIZE = 10;
 
 const radioCardClass =
-  "flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-[#e8951e]/12 bg-white/[0.035] px-3 py-2 text-center transition has-[[data-state=checked]]:ring-2";
+  "flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-[#a855f7]/12 bg-white/[0.035] px-3 py-2 text-center transition has-[[data-state=checked]]:ring-2";
 const radioLabelClass = "flex items-center justify-center text-center text-xs font-bold";
 
 const radioToneClass = {
@@ -71,7 +69,7 @@ function FormSection({
   return (
     <div className={cn(workspaceInnerPanelClass, "p-4 sm:p-5", className)}>
       <div className="mb-4 border-b border-white/8 pb-3">
-        <p className="text-[0.62rem] font-black uppercase tracking-[0.22em] text-apex-orange-light/80">{kicker}</p>
+        <p className="text-[0.62rem] font-bold uppercase tracking-[0.22em] text-apex-orange-light/80">{kicker}</p>
         <p className="mt-1 text-sm font-semibold text-white/85">{title}</p>
       </div>
       {children}
@@ -87,7 +85,7 @@ function PaymentClassificationFields({
   return (
     <div className="grid gap-3 lg:grid-cols-3">
       <div className="space-y-4 rounded-xl border border-white/8 bg-white/2 p-3.5">
-        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-apex-orange-light/80">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-apex-orange-light/80">
           Invoice type
         </p>
         <Controller
@@ -119,7 +117,7 @@ function PaymentClassificationFields({
       </div>
 
       <div className="space-y-4 rounded-xl border border-white/8 bg-white/2 p-3.5">
-        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-apex-orange-light/80">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-apex-orange-light/80">
           Payment status
         </p>
         <Controller
@@ -151,7 +149,7 @@ function PaymentClassificationFields({
       </div>
 
       <div className="space-y-4 rounded-xl border border-white/8 bg-white/2 p-3.5">
-        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-apex-orange-light/80">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-apex-orange-light/80">
           Payment method
         </p>
         <Controller
@@ -193,15 +191,17 @@ function PaymentClassificationFields({
 function statusBadge(status: string) {
   const isPaid = status === "paid";
   return (
-    <Badge
-      variant={isPaid ? "outline" : "destructive"}
+    <span
       className={cn(
-        "font-black uppercase tracking-[0.16em]",
-        isPaid && "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.12em]",
+        isPaid
+          ? "border-emerald-300/45 bg-emerald-400/15 text-emerald-200"
+          : "border-rose-300/45 bg-rose-400/15 text-rose-200",
       )}
     >
+      <span className={cn("size-1.5 rounded-full", isPaid ? "bg-emerald-300" : "bg-rose-300")} />
       {isPaid ? "Paid" : "Unpaid"}
-    </Badge>
+    </span>
   );
 }
 
@@ -228,14 +228,21 @@ export function InvoiceManagementSection({
   onEdit: (invoice: InvoiceData) => void;
   onDelete: (id: string) => void | Promise<void>;
 }) {
-  const paidInvoices = invoices.filter((invoice) => invoice.invoice_status === "paid");
-  const unpaidInvoices = invoices.filter((invoice) => invoice.invoice_status === "unpaid");
-  const unpaidTotal = unpaidInvoices.reduce((sum, invoice) => sum + Number(invoice.invoice_amount), 0);
   const watchedAmount = form.watch("invoice_amount");
   const watchedStatus = form.watch("invoice_status");
   const previewAmount = Number(watchedAmount) || 0;
   const [page, setPage] = useState(1);
-  const { items: pagedInvoices, safePage, totalCount } = paginateItems(invoices, page, INVOICE_PAGE_SIZE);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const filteredInvoices = invoices.filter((invoice) => {
+    if (statusFilter !== "all" && invoice.invoice_status !== statusFilter) return false;
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [invoice.invoice_number, invoice.supplier_name, invoice.invoice_type, invoice.invoice_payment_method]
+      .filter(Boolean)
+      .some((field) => String(field).toLowerCase().includes(q));
+  });
+  const { items: pagedInvoices, safePage, totalCount } = paginateItems(filteredInvoices, page, INVOICE_PAGE_SIZE);
 
   useEffect(() => {
     if (page !== safePage) {
@@ -245,52 +252,30 @@ export function InvoiceManagementSection({
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <WorkspaceStat label="Total invoices" value={String(invoices.length)} icon={FileText} />
-        <WorkspaceStat
-          label="Paid"
-          value={String(paidInvoices.length)}
-          tone="text-emerald-300"
-          icon={Receipt}
-        />
-        <WorkspaceStat
-          label="Unpaid"
-          value={String(unpaidInvoices.length)}
-          tone={unpaidInvoices.length > 0 ? "text-amber-200" : "text-white/85"}
-          icon={Wallet}
-        />
-        <WorkspaceStat
-          label="Unpaid balance"
-          value={formatCurrency(unpaidTotal)}
-          tone={unpaidTotal > 0 ? "text-apex-orange-light" : "text-white/85"}
-          icon={Banknote}
-        />
-      </div>
 
       <div className="flex flex-col gap-6">
         {invoiceToEdit ? (
           <Dialog open onOpenChange={(open) => { if (!open) onCancelEdit(); }}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border border-white/12 bg-[#0b1420] p-0 text-white shadow-xl ring-0 sm:max-w-5xl">
+            <DialogContent className="max-h-[90vh] min-w-0 overflow-x-hidden overflow-y-auto p-0 text-white sm:max-w-5xl">
               <DialogHeader className="border-b border-white/10 px-6 py-5 pr-14">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/4 text-apex-orange-light">
+                  <span className="tint-icon tint-sky flex size-10 shrink-0 items-center justify-center rounded-xl">
                     <Receipt className="size-5" />
                   </span>
                   <div>
-                    <p className="text-xs font-semibold text-white/45">Invoice record</p>
-                    <DialogTitle className="mt-1 text-lg font-semibold text-white">Edit invoice</DialogTitle>
-                    <DialogDescription className="mt-1 text-sm text-white/60">Update the invoice details, payment state, and supporting information.</DialogDescription>
+                    <DialogTitle className="font-display text-xl font-bold text-white">Edit invoice</DialogTitle>
+                    <DialogDescription className="mt-0.5 text-sm text-white/60">Update the invoice details, payment state, and supporting information.</DialogDescription>
                   </div>
                 </div>
               </DialogHeader>
 
               <div className={cn(workspaceInnerPanelClass, "mx-5 mt-5 flex items-center justify-between gap-4 bg-apex-orange/8 p-4") }>
                 <div>
-                  <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-white/40">Live preview</p>
+                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-white/40">Live preview</p>
                   <p className="mt-1 font-display text-2xl font-bold text-apex-orange-light">{formatCurrency(previewAmount)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-white/40">Status</p>
+                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-white/40">Status</p>
                   <div className="mt-1.5">{statusBadge(watchedStatus || "unpaid")}</div>
                 </div>
               </div>
@@ -304,7 +289,7 @@ export function InvoiceManagementSection({
                     label="Invoice number"
                     placeholder="e.g. INV-2026-0042"
                     labelClassName="text-xs font-semibold text-white/65"
-                    inputClassName="h-11 rounded-lg border-white/14 bg-[#111d2a] text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20"
+                    inputClassName="h-11 rounded-lg border-white/14 bg-[#120f3a] text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20"
                   />
                   <div className="space-y-2">
                     <label htmlFor="invoice-supplier" className="text-xs font-semibold text-white/65">Supplier</label>
@@ -323,7 +308,7 @@ export function InvoiceManagementSection({
                           placeholder={suppliers.length ? "Select supplier" : "Add suppliers first"}
                           searchPlaceholder="Search suppliers..."
                           disabled={!suppliers.length}
-                          className="h-11 rounded-lg border-white/14 bg-[#111d2a] text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20"
+                          className="h-11 rounded-lg border-white/14 bg-[#120f3a] text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20"
                         />
                       )}
                     />
@@ -338,7 +323,7 @@ export function InvoiceManagementSection({
                     label="Invoice date"
                     placeholder="Pick invoice date"
                     labelClassName="text-xs font-semibold text-white/65"
-                    inputClassName="h-11 w-full justify-between rounded-lg border-white/14 bg-[#111d2a] px-3 text-white shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20"
+                    inputClassName="h-11 w-full justify-between rounded-lg border-white/14 bg-[#120f3a] px-3 text-white shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20"
                   />
                 </div>
 
@@ -350,12 +335,12 @@ export function InvoiceManagementSection({
                   placeholder="0.00"
                   type="number"
                   labelClassName="text-xs font-semibold text-white/65"
-                  inputClassName="h-11 rounded-lg border-white/14 bg-[#111d2a] text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20"
+                  inputClassName="h-11 rounded-lg border-white/14 bg-[#120f3a] text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20"
                 />
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-apex-orange-light/80">
+                    <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-apex-orange-light/80">
                       Payment & classification
                     </p>
                     <span className="h-px flex-1 bg-linear-to-r from-white/12 to-transparent" />
@@ -377,7 +362,7 @@ export function InvoiceManagementSection({
                   </div>
                   <div className="flex items-end">
                     <div className="w-full rounded-xl border border-white/10 bg-white/3 p-4 text-sm text-white/70">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">Summary</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">Summary</p>
                       <p className="mt-2 font-medium text-white/85">{form.watch("invoice_number") || "Untitled invoice"}</p>
                       <p className="mt-2 text-xs text-white/60">{suppliers.find((supplier) => supplier.id === form.watch("supplier_id"))?.supplier_name || "No supplier selected"}</p>
                     </div>
@@ -400,21 +385,32 @@ export function InvoiceManagementSection({
         )}
 
         <Card className={cn(workspacePanelClass, "overflow-hidden")}>
-          <WorkspaceModuleHeader
-            kicker="Billing ledger"
-            title="Invoice records"
-            description="Review supplier and sales invoices with payment status at a glance."
-          />
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-5 p-5 sm:p-6">
+            <SectionTitle
+              icon={Receipt}
+              tint="sky"
+              title="Invoice records"
+              subtitle={`Showing ${filteredInvoices.length} of ${invoices.length} · supplier and sales invoices with payment status at a glance`}
+            />
+            <ListToolbar
+              search={search}
+              onSearchChange={(value) => { setSearch(value); setPage(1); }}
+              searchPlaceholder="Search invoice, supplier or type…"
+              filterValue={statusFilter}
+              onFilterChange={(value) => { setStatusFilter(value); setPage(1); }}
+              filterPlaceholder="Filter by status…"
+              filterOptions={[
+                { value: "all", label: "All statuses" },
+                { value: "paid", label: "Paid" },
+                { value: "unpaid", label: "Unpaid" },
+              ]}
+            />
             <div className={cn(workspaceInnerPanelClass, "overflow-x-auto")}>
               <Table>
                 <TableHeader>
                   <TableRow className="border-white/10 hover:bg-transparent">
                     {["Invoice", "Supplier", "Date", "Amount", "Status", "Actions"].map((header) => (
-                      <TableHead
-                        key={header}
-                        className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-white/45"
-                      >
+                      <TableHead key={header} className={tableHeadClass}>
                         {header}
                       </TableHead>
                     ))}
@@ -423,7 +419,7 @@ export function InvoiceManagementSection({
                 <TableBody>
                   {pagedInvoices.length ? (
                     pagedInvoices.map((invoice) => (
-                      <TableRow key={invoice.id} className="border-white/8 hover:bg-white/4">
+                      <TableRow key={invoice.id} className="border-white/8">
                         <TableCell>
                           <div className="flex items-center gap-3">
                             {invoice.invoice_image ? (
@@ -432,27 +428,32 @@ export function InvoiceManagementSection({
                                 alt={`Invoice ${invoice.invoice_number}`}
                                 width={44}
                                 height={44}
-                                className="size-11 shrink-0 rounded-lg border border-white/10 object-cover"
+                                className="size-11 shrink-0 rounded-2xl border border-white/20 object-cover"
                               />
                             ) : (
-                              <span className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/35">
+                              <span className="tint-icon tint-sky flex size-11 shrink-0 items-center justify-center rounded-2xl">
                                 <Receipt className="h-4 w-4" />
                               </span>
                             )}
                             <div className="space-y-1">
-                              <p className="font-medium text-white/90">{invoice.invoice_number}</p>
-                              <p className="text-xs capitalize text-white/40">
+                              <p className="font-bold text-white">{invoice.invoice_number}</p>
+                              <p className="text-xs capitalize text-white/55">
                                 {invoice.invoice_type} · {invoice.invoice_payment_method}
                               </p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-white/80">{invoice.supplier_name || "No supplier"}</TableCell>
-                        <TableCell className="text-white/70">
-                          {format(parseISO(invoice.invoice_date), "PPP")}
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1.5 text-white/75">
+                            <CalendarDays className="size-3.5 text-cyan-300" />
+                            {format(parseISO(invoice.invoice_date), "PPP")}
+                          </span>
                         </TableCell>
-                        <TableCell className="font-medium text-apex-orange-light">
-                          {formatCurrency(invoice.invoice_amount)}
+                        <TableCell>
+                          <span className="inline-flex items-center rounded-xl border border-sky-300/40 bg-[linear-gradient(135deg,rgba(56,189,248,0.24),rgba(168,85,247,0.2))] px-3 py-1 font-display text-sm font-bold tabular-nums text-white">
+                            {formatCurrency(invoice.invoice_amount)}
+                          </span>
                         </TableCell>
                         <TableCell>{statusBadge(invoice.invoice_status)}</TableCell>
                         <TableCell>
@@ -460,7 +461,6 @@ export function InvoiceManagementSection({
                             <Button
                               size="icon-sm"
                               variant="outline"
-                              className="border-white/12 bg-white/5"
                               onClick={() => onEdit(invoice)}
                               aria-label={`Edit invoice ${invoice.invoice_number}`}
                               title={`Edit invoice ${invoice.invoice_number}`}
@@ -479,9 +479,14 @@ export function InvoiceManagementSection({
                       </TableRow>
                     ))
                   ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-white/45">
-                        No invoices added yet.
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={6} className="p-4">
+                        <EmptyState
+                          icon={Receipt}
+                          tint="sky"
+                          title={invoices.length ? "No invoices match" : "No invoices added yet"}
+                          description={invoices.length ? "Try another search or status." : "Add an invoice above to see it here."}
+                        />
                       </TableCell>
                     </TableRow>
                   )}

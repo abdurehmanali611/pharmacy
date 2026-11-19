@@ -1,21 +1,22 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import type { UseFormReturn } from "react-hook-form";
 import { Controller } from "react-hook-form";
-import { AlertTriangle, Package, Pencil, Pill, Search, Upload } from "lucide-react";
+import { BadgeCheck, PackageX, Pencil, Pill, Upload, Wallet, X } from "lucide-react";
 import type { z } from "zod";
 
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { ConfirmDeleteButton } from "@/components/manager/ConfirmDeleteButton";
 import { DateFilterPicker } from "@/components/manager/DateFilterPicker";
+import { Chip, EmptyState, ListToolbar, SectionTitle, tableHeadClass } from "@/components/manager/kit";
 import { BatchMedicineDialog } from "@/components/manager/batch/BatchMedicineDialog";
 import {
   workspaceInnerPanelClass,
   workspacePanelClass,
-  WorkspaceModuleHeader,
-  WorkspaceStat,
 } from "@/components/manager/workspace";
+import { StockLossDialog } from "@/components/manager/StockLossDialog";
 import { TablePagination } from "@/components/manager/TablePagination";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,7 +30,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 import { DRUG_CATEGORIES } from "@/constants";
 import { formatCurrency } from "@/lib/format";
@@ -38,10 +39,10 @@ import { addMedicine } from "@/lib/validations";
 import type { MedicineData, SupplierData } from "@/lib/actions";
 
 const medicineEditControlClass =
-  "h-11 rounded-lg border-white/14 bg-[#111d2a] text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20";
+  "h-11 rounded-lg border-white/14 bg-[#120f3a] text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20";
 const medicineEditLabelClass = "text-xs font-semibold text-white/65";
 const medicineEditTextareaClass =
-  "h-[13.5rem] min-h-[13.5rem] resize-none rounded-lg border-white/14 bg-[#111d2a] text-sm text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20";
+  "h-[13.5rem] min-h-[13.5rem] resize-none rounded-lg border-white/14 bg-[#120f3a] text-sm text-white placeholder:text-white/35 shadow-none focus-visible:border-teal-400/60 focus-visible:ring-teal-400/20";
 
 function getStockLevel(quantity: number) {
   if (quantity <= 0) return "out";
@@ -60,6 +61,27 @@ function getExpiryLevel(expiryDate?: string | null) {
   const in30Days = new Date(endOfToday.getTime() + 30 * 24 * 60 * 60 * 1000);
   if (date.getTime() <= in30Days.getTime()) return "soon";
   return "ok";
+}
+
+function PaidSummary({ received, cost, paid }: { received: number; cost: number; paid: number }) {
+  const total = Math.max(0, received) * cost;
+  const over = paid - total > 0.005;
+  const due = Math.max(0, total - paid);
+  return (
+    <div className="space-y-1.5 text-sm">
+      <p className="text-white/70">
+        Total cost <span className="font-bold text-white">{formatCurrency(total)}</span>
+        <span className="text-white/45"> ({Math.max(0, received)} received × {formatCurrency(cost)})</span>
+      </p>
+      {over ? (
+        <p className="font-bold text-rose-300">Paid amount cannot be more than the total cost.</p>
+      ) : due > 0.005 ? (
+        <p className="font-bold text-rose-200">On credit · {formatCurrency(due)} still to pay</p>
+      ) : (
+        <p className="font-bold text-emerald-300">Fully paid</p>
+      )}
+    </div>
+  );
 }
 
 export function MedicineManagementSection({
@@ -105,48 +127,48 @@ export function MedicineManagementSection({
 }) {
   const pageSize = 4;
 
-  let critical = 0;
-  let expiring = 0;
-  for (const item of medicines) {
-    const stock = getStockLevel(Number(item.quantity));
-    if (stock === "critical" || stock === "out") critical += 1;
-    if (getExpiryLevel(item.expiry_date) === "soon" || getExpiryLevel(item.expiry_date) === "expired") {
-      expiring += 1;
-    }
-  }
+  // Selection is keyed by id and keeps the medicine, so batch actions work across pages.
+  const [selected, setSelected] = useState<Record<string, MedicineData>>({});
+  const [lossDialog, setLossDialog] = useState<{ items: MedicineData[] } | null>(
+    null,
+  );
+  const selectedItems = useMemo(() => Object.values(selected), [selected]);
+  const pageSelectedCount = medicines.filter((item) => selected[String(item.id)]).length;
+  const allPageSelected = medicines.length > 0 && pageSelectedCount === medicines.length;
+
+  const toggleOne = (item: MedicineData, checked: boolean) =>
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (checked) next[String(item.id)] = item;
+      else delete next[String(item.id)];
+      return next;
+    });
+
+  const togglePage = (checked: boolean) =>
+    setSelected((prev) => {
+      const next = { ...prev };
+      for (const item of medicines) {
+        if (checked) next[String(item.id)] = item;
+        else delete next[String(item.id)];
+      }
+      return next;
+    });
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <WorkspaceStat label="Total SKUs" value={String(medicineCount)} icon={Package} />
-        <WorkspaceStat label="On this page" value={String(medicines.length)} tone="text-white/85" icon={Pill} />
-        <WorkspaceStat
-          label="Urgent stock"
-          value={String(critical)}
-          tone={critical > 0 ? "text-red-300" : "text-emerald-300"}
-          icon={AlertTriangle}
-        />
-        <WorkspaceStat
-          label="Expiry flags"
-          value={String(expiring)}
-          tone={expiring > 0 ? "text-amber-200" : "text-white/85"}
-          icon={AlertTriangle}
-        />
-      </div>
 
       <div className="flex flex-col gap-6">
         {medicineToEdit ? (
           <Dialog open onOpenChange={(open) => { if (!open) onCancelEdit(); }}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border border-white/12 bg-[#0b1420] p-0 text-white shadow-xl ring-0 sm:max-w-5xl">
+            <DialogContent className="max-h-[90vh] min-w-0 overflow-x-hidden overflow-y-auto p-0 text-white sm:max-w-5xl">
               <DialogHeader className="border-b border-white/10 px-6 py-5 pr-14">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/4 text-teal-200">
+                  <span className="tint-icon tint-emerald flex size-10 shrink-0 items-center justify-center rounded-xl">
                     <Pill className="size-5" />
                   </span>
                   <div>
-                    <p className="text-xs font-semibold text-white/45">Inventory record</p>
-                    <DialogTitle className="mt-1 text-lg font-semibold text-white">Edit medicine</DialogTitle>
-                    <DialogDescription className="mt-1 text-sm text-white/60">Update product, supplier and stock details.</DialogDescription>
+                    <DialogTitle className="font-display text-xl font-bold text-white">Edit medicine</DialogTitle>
+                    <DialogDescription className="mt-0.5 text-sm text-white/60">Update product, supplier and stock details.</DialogDescription>
                   </div>
                 </div>
               </DialogHeader>
@@ -259,6 +281,23 @@ export function MedicineManagementSection({
                     inputClassName={`${medicineEditControlClass} w-full justify-between px-3 font-normal`}
                   />
                 </div>
+                <div className="grid gap-3 rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/6 p-4 md:grid-cols-[minmax(0,16rem)_1fr] md:items-center">
+                  <CustomFormField
+                    name="paid_amount"
+                    control={form.control}
+                    fieldType={formFieldTypes.INPUT}
+                    label="Paid amount"
+                    placeholder="0.00"
+                    type="number"
+                    labelClassName={medicineEditLabelClass}
+                    inputClassName={medicineEditControlClass}
+                  />
+                  <PaidSummary
+                    received={Number(medicineToEdit.received_quantity ?? medicineToEdit.quantity) + (Number(form.watch("quantity") || 0) - Number(medicineToEdit.quantity))}
+                    cost={Number(form.watch("cost") || 0)}
+                    paid={Number(form.watch("paid_amount") ?? 0)}
+                  />
+                </div>
                 <div className="grid gap-4 lg:grid-cols-2">
                   <CustomFormField
                     name="description"
@@ -314,39 +353,68 @@ export function MedicineManagementSection({
         )}
 
         <Card className={cn(workspacePanelClass, "overflow-hidden")}>
-          <WorkspaceModuleHeader
-            kicker="Stock ledger"
-            title="Medicine inventory"
-            description="Search, filter, and act on stock levels and expiry urgency in real time."
-          />
-          <CardContent className="space-y-4 pt-6">
-            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-                <Input
-                  value={medicineSearch}
-                  onChange={(event) => onSearchChange(event.target.value)}
-                  placeholder="Search medicines, category, supplier..."
-                  className="h-11 border-white/10 bg-white/[0.035] pl-9 text-white placeholder:text-white/50 focus-visible:border-apex-orange/40 focus-visible:ring-apex-orange/20"
+          <CardContent className="space-y-5 p-5 sm:p-6">
+            <SectionTitle
+              icon={Pill}
+              tint="emerald"
+              title="Medicine inventory"
+              subtitle="Search, filter, and act on stock levels and expiry urgency in real time"
+            />
+            <ListToolbar
+              search={medicineSearch}
+              onSearchChange={onSearchChange}
+              searchPlaceholder="Search medicines, category, supplier…"
+              extra={
+                <DateFilterPicker
+                  value={medicineCreatedDate}
+                  onChange={onCreatedDateChange}
+                  placeholder="Filter by created date"
+                  allowClear
                 />
+              }
+            />
+
+            {selectedItems.length ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-apex-orange/25 bg-apex-orange/8 px-3 py-2.5">
+                <p className="mr-auto text-sm font-semibold text-white/85">
+                  {selectedItems.length} selected
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setLossDialog({ items: selectedItems })}
+                >
+                  <PackageX className="mr-1.5 h-4 w-4 text-amber-300" />
+                  Damaged / Wasted
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-white/65"
+                  onClick={() => setSelected({})}
+                >
+                  <X className="mr-1 h-4 w-4" />
+                  Clear
+                </Button>
               </div>
-              <DateFilterPicker
-                value={medicineCreatedDate}
-                onChange={onCreatedDateChange}
-                placeholder="Filter by created date"
-                allowClear
-              />
-            </div>
+            ) : null}
 
             <div className={cn(workspaceInnerPanelClass, "overflow-x-auto")}>
               <Table>
                 <TableHeader>
                   <TableRow className="border-white/10 hover:bg-transparent">
-                    {["Medicine", "Category", "Supplier", "Stock", "Price", "Expiry", "Actions"].map((h) => (
-                      <TableHead
-                        key={h}
-                        className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-white/45"
-                      >
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allPageSelected ? true : pageSelectedCount ? "indeterminate" : false}
+                        disabled={!medicines.length}
+                        onCheckedChange={(checked) => togglePage(checked === true)}
+                        aria-label="Select all medicines on this page"
+                      />
+                    </TableHead>
+                    {["Medicine", "Category", "Supplier", "Stock", "Payment", "Price", "Expiry", "Actions"].map((h) => (
+                      <TableHead key={h} className={tableHeadClass}>
                         {h}
                       </TableHead>
                     ))}
@@ -355,7 +423,18 @@ export function MedicineManagementSection({
                 <TableBody>
                   {medicines.length ? (
                     medicines.map((item) => (
-                      <TableRow key={item.id} className="border-white/8 hover:bg-white/4">
+                      <TableRow
+                        key={item.id}
+                        className="border-white/8"
+                        data-state={selected[String(item.id)] ? "selected" : undefined}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={Boolean(selected[String(item.id)])}
+                            onCheckedChange={(checked) => toggleOne(item, checked === true)}
+                            aria-label={`Select ${item.name}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="space-y-1">
                             <div className="flex items-center gap-3">
@@ -376,11 +455,11 @@ export function MedicineManagementSection({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className="border-white/10 bg-white/8 text-white/75">
+                          <Chip seed={item.category || "other"}>
                             {DRUG_CATEGORIES.find((c) => c.value === item.category)?.name ??
                               item.category ??
                               "Uncategorized"}
-                          </Badge>
+                          </Chip>
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
@@ -394,7 +473,7 @@ export function MedicineManagementSection({
                             if (Number(item.quantity) === 0) {
                               return (
                                 <div className="space-y-1">
-                                  <Badge variant="destructive" className="font-black tracking-[0.18em]">
+                                  <Badge variant="destructive" className="font-bold tracking-[0.18em]">
                                     OUT
                                   </Badge>
                                   <p className="text-xs font-bold text-red-300">0 units left</p>
@@ -411,7 +490,7 @@ export function MedicineManagementSection({
                                         ? "secondary"
                                         : "outline"
                                   }
-                                  className={stockLevel === "ok" ? "font-bold" : "font-black tracking-[0.18em]"}
+                                  className={stockLevel === "ok" ? "font-bold" : "font-bold tracking-[0.18em]"}
                                 >
                                   {stockLevel === "critical" ? "CRITICAL" : stockLevel === "low" ? "LOW" : "OK"}
                                 </Badge>
@@ -420,8 +499,28 @@ export function MedicineManagementSection({
                             );
                           })()}
                         </TableCell>
-                        <TableCell className="font-medium text-apex-orange-light">
-                          {formatCurrency(item.price)}
+                        <TableCell>
+                          {item.payment_status === "credit" ? (
+                            <div className="space-y-1">
+                              <Chip className="border-rose-300/45 bg-rose-400/15 text-rose-200">
+                                <Wallet className="size-3" />
+                                On credit
+                              </Chip>
+                              <p className="text-xs font-semibold tabular-nums text-rose-200">
+                                {formatCurrency(Number(item.credit_amount ?? 0))} due
+                              </p>
+                            </div>
+                          ) : (
+                            <Chip className="border-emerald-300/45 bg-emerald-400/15 text-emerald-200">
+                              <BadgeCheck className="size-3" />
+                              Fully paid
+                            </Chip>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center rounded-xl border border-emerald-300/40 bg-[linear-gradient(135deg,rgba(52,211,153,0.22),rgba(34,211,238,0.18))] px-3 py-1 font-display text-sm font-bold tabular-nums text-white">
+                            {formatCurrency(item.price)}
+                          </span>
                         </TableCell>
                         <TableCell>
                           {(() => {
@@ -439,7 +538,7 @@ export function MedicineManagementSection({
                                         ? "secondary"
                                         : "outline"
                                   }
-                                  className={expiryLevel === "ok" ? "font-bold" : "font-black tracking-[0.18em]"}
+                                  className={expiryLevel === "ok" ? "font-bold" : "font-bold tracking-[0.18em]"}
                                 >
                                   {expiryLevel === "expired" ? "EXPIRED" : expiryLevel === "soon" ? "SOON" : "OK"}
                                 </Badge>
@@ -455,12 +554,22 @@ export function MedicineManagementSection({
                           <Button
                             size="icon-sm"
                             variant="outline"
-                            className="border-white/12 bg-white/5"
+                             
                             onClick={() => onEdit(item)}
                             aria-label={`Edit ${item.name}`}
                             title={`Edit ${item.name}`}
                           >
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon-sm"
+                            variant="outline"
+                            disabled={Number(item.quantity) <= 0}
+                            onClick={() => setLossDialog({ items: [item] })}
+                            aria-label={`Register ${item.name} as damaged or wasted`}
+                            title="Damaged / Wasted"
+                          >
+                            <PackageX className="h-4 w-4 text-amber-300" />
                           </Button>
                           <ConfirmDeleteButton
                             title="Delete medicine?"
@@ -474,9 +583,14 @@ export function MedicineManagementSection({
                       </TableRow>
                     ))
                   ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-12 text-center text-white/40">
-                        No medicines found.
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={9} className="p-4">
+                        <EmptyState
+                          icon={Pill}
+                          tint="emerald"
+                          title="No medicines found"
+                          description="Try another search, or add stock with the intake form above."
+                        />
                       </TableCell>
                     </TableRow>
                   )}
@@ -508,6 +622,15 @@ export function MedicineManagementSection({
         </Card>
       </div>
 
+      <StockLossDialog
+        open={lossDialog !== null}
+        medicines={lossDialog?.items ?? []}
+        onClose={() => setLossDialog(null)}
+        onSuccess={async () => {
+          setSelected({});
+          await onRefresh();
+        }}
+      />
     </div>
   );
 }

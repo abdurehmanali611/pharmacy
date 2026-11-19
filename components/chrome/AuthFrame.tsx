@@ -33,7 +33,7 @@ export function AuthFrame({
           <ApexLogo size="md" />
           <Badge
             variant="outline"
-            className="border-white/10 bg-white/5 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.26em] text-white/50"
+            className="border-white/10 bg-white/5 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.26em] text-white/50"
           >
             {PRODUCT.name}
           </Badge>
@@ -49,7 +49,7 @@ export function AuthFrame({
                 <div className="mb-8 space-y-3">
                   <Badge
                     variant="outline"
-                    className="border-white/10 bg-white/5 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.28em] text-white/55"
+                    className="border-white/10 bg-white/5 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.28em] text-white/55"
                   >
                     {eyebrow}
                   </Badge>

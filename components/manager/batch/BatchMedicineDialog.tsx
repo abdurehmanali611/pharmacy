@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Layers, CalendarDays } from "lucide-react";
+import { Trash2, Layers, CalendarDays } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 
 import { CloudinaryImageUploader } from "@/components/customFormField";
+import { AddLineBar, LineNumber } from "@/components/manager/kit";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,8 @@ import { DRUG_CATEGORIES } from "@/constants";
 import { createBatchMedicines, type addMedicine, type SupplierData } from "@/lib/actions";
 import { formatCurrency } from "@/lib/format";
 
+const LINE_TINTS = ["violet", "cyan", "pink", "emerald", "amber", "sky"] as const;
+
 type MedicineLine = {
   id: string;
   name: string;
@@ -24,6 +27,8 @@ type MedicineLine = {
   price: string;
   cost: string;
   quantity: string;
+  paid_amount: string;
+  paid_touched: boolean;
   batch_number: string;
   expiry_date: string;
   description: string;
@@ -38,6 +43,8 @@ const createEmptyLine = (): MedicineLine => ({
   price: "",
   cost: "",
   quantity: "",
+  paid_amount: "",
+  paid_touched: false,
   batch_number: "",
   expiry_date: "",
   description: "",
@@ -65,6 +72,18 @@ export function BatchMedicineDialog({
   const updateLine = (id: string, field: keyof MedicineLine, value: string) => {
     setLines((prev) =>
       prev.map((line) => (line.id === id ? { ...line, [field]: value } : line)),
+    );
+  };
+
+  // Paid amount follows quantity x cost until the manager edits it; anything lower means credit.
+  const lineTotal = (line: MedicineLine) => (Number(line.cost) || 0) * (Number(line.quantity) || 0);
+  const linePaid = (line: MedicineLine) =>
+    line.paid_touched ? Number(line.paid_amount) || 0 : lineTotal(line);
+  const totalCredit = lines.reduce((sum, line) => sum + Math.max(0, lineTotal(line) - linePaid(line)), 0);
+
+  const updatePaid = (id: string, value: string) => {
+    setLines((prev) =>
+      prev.map((line) => (line.id === id ? { ...line, paid_amount: value, paid_touched: true } : line)),
     );
   };
 
@@ -98,6 +117,10 @@ export function BatchMedicineDialog({
         toast.error(`Line #${i + 1} (${line.name}): Batch number is required`);
         return;
       }
+      if (linePaid(line) < 0 || linePaid(line) - lineTotal(line) > 0.005) {
+        toast.error(`Line #${i + 1} (${line.name}): Paid amount cannot be more than the total cost`);
+        return;
+      }
     }
 
     const payload: addMedicine[] = lines.map((line) => ({
@@ -107,6 +130,7 @@ export function BatchMedicineDialog({
       price: Number(line.price),
       cost: Number(line.cost) || 0,
       quantity: Number(line.quantity),
+      paid_amount: Math.round(linePaid(line) * 100) / 100,
       batch_number: line.batch_number.trim(),
       expiry_date: line.expiry_date || null,
       description: line.description.trim() || "Batch registered medicine",
@@ -123,15 +147,15 @@ export function BatchMedicineDialog({
   };
 
   return (
-    <section className="overflow-hidden rounded-xl border border-white/10 bg-[#09111f]/90 p-5 text-white shadow-xl sm:p-6">
+    <section className="workspace-panel-surface overflow-hidden p-5 text-white sm:p-6">
         <header className="border-b border-white/10 pb-4">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-apex-orange/30 bg-apex-orange/10 text-apex-orange-light">
+            <span className="tint-icon tint-emerald flex size-11 shrink-0 items-center justify-center rounded-2xl">
               <Layers className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-lg font-bold">Medicine intake</h2>
-              <p className="text-xs text-white/60">Register multiple stock records with individual supplier, pricing, batch and expiry details.</p>
+              <h2 className="font-display text-xl font-bold">Medicine intake</h2>
+              <p className="text-sm text-white/60">Register multiple stock records with individual supplier, pricing, batch and expiry details.</p>
             </div>
           </div>
         </header>
@@ -141,12 +165,10 @@ export function BatchMedicineDialog({
             {lines.map((line, index) => (
               <div
                 key={line.id}
-                className="relative rounded-xl border border-white/10 bg-white/3 p-4 transition-colors hover:border-white/20 sm:p-5"
+                className={`workspace-inner-surface relative p-5 tint-${LINE_TINTS[index % LINE_TINTS.length]}`}
               >
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/80">
-                    Line #{index + 1}
-                  </span>
+                  <span className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.16em] text-white/85"><LineNumber index={index} />Line</span>
                   {lines.length > 1 ? (
                     <Button
                       type="button"
@@ -240,6 +262,30 @@ export function BatchMedicineDialog({
                   </div>
 
                   <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-white/70">Paid Amount (ETB)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={lineTotal(line) || undefined}
+                      placeholder="0.00"
+                      value={line.paid_touched ? line.paid_amount : lineTotal(line) ? String(lineTotal(line)) : ""}
+                      onChange={(e) => updatePaid(line.id, e.target.value)}
+                      className="h-10 border-white/10 bg-white/4 text-sm"
+                    />
+                    {lineTotal(line) > 0 ? (
+                      linePaid(line) - lineTotal(line) > 0.005 ? (
+                        <p className="text-[11px] font-bold text-rose-300">Cannot exceed {formatCurrency(lineTotal(line))}</p>
+                      ) : lineTotal(line) - linePaid(line) > 0.005 ? (
+                        <p className="text-[11px] font-bold text-rose-200">
+                          On credit · {formatCurrency(lineTotal(line) - linePaid(line))} due
+                        </p>
+                      ) : (
+                        <p className="text-[11px] font-bold text-emerald-300">Fully paid</p>
+                      )
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-white/70">Expiry Date</label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -298,15 +344,7 @@ export function BatchMedicineDialog({
             ))}
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addLine}
-            className="w-full gap-2 border-dashed border-white/20 bg-white/2 py-5 text-sm font-semibold text-white/80 hover:border-white/40 hover:bg-white/6 hover:text-white"
-          >
-            <Plus className="h-4 w-4" />
-            Add line
-          </Button>
+          <AddLineBar label="Add another line" onClick={addLine} />
         </div>
 
         <footer className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-4 sm:flex-row">
@@ -319,6 +357,9 @@ export function BatchMedicineDialog({
             </div>
             <div>
               Estimated Cost: <span className="font-bold text-apex-orange-light">{formatCurrency(totalCost)}</span>
+              {totalCredit > 0.005 ? (
+                <span className="ml-3 font-bold text-rose-200">Credit due: {formatCurrency(totalCredit)}</span>
+              ) : null}
             </div>
           </div>
           <div className="flex gap-2">
@@ -326,7 +367,7 @@ export function BatchMedicineDialog({
               type="button"
               disabled={submitting}
               onClick={handleSubmit}
-              className="gap-2 bg-apex-orange font-semibold text-white hover:bg-apex-orange-light"
+              className="min-w-52 gap-2"
             >
               {submitting ? "Registering..." : `Register All ${lines.length} Lines`}
             </Button>

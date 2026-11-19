@@ -1,7 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, LayoutGrid, Minus, Package, Pill, Plus, Search, ShoppingBag, TriangleAlert } from "lucide-react";
+import {
+  ChevronDown,
+  Clock3,
+  LayoutGrid,
+  Minus,
+  Package,
+  Pill,
+  Plus,
+  Search,
+  ShoppingBag,
+  TriangleAlert,
+} from "lucide-react";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -42,7 +53,7 @@ import { Input } from "@/components/ui/input";
 import { DRUG_CATEGORIES } from "@/constants";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { MedicineData } from "@/lib/actions";
+import type { DiscountRuleData, MedicineData } from "@/lib/actions";
 
 function getStockTone(quantity: number) {
   if (quantity <= 5) return "destructive";
@@ -80,24 +91,41 @@ type PriorityIntent =
   | { kind: "single"; medicine: MedicineData }
   | { kind: "batch"; items: { medicine: MedicineData; quantity: number }[] };
 
+export type MedicineSaleRuleHint = {
+  kind: "needs_approval" | "quantity_band";
+  threshold?: number;
+  final?: number | null;
+};
+
+const NO_CUSTOMER = "__none__";
+const NO_DISCOUNT_RULES: DiscountRuleData[] = [];
+
 export function MedicineCatalog({
   medicines,
   selectedCategory,
   onSelectCategory,
   loading,
   onOrder,
+  saleRulesByMedicineId = {},
+  discountRules = NO_DISCOUNT_RULES,
 }: {
   medicines: MedicineData[];
   selectedCategory: string;
   onSelectCategory: (category: string) => void;
   loading: boolean;
-  onOrder: (items: { medicine: MedicineData; quantity: number }[]) => Promise<boolean>;
+  onOrder: (
+    items: { medicine: MedicineData; quantity: number }[],
+    customerName?: string,
+  ) => Promise<boolean>;
+  saleRulesByMedicineId?: Record<string, MedicineSaleRuleHint>;
+  discountRules?: DiscountRuleData[];
 }) {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Record<string, number>>({});
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [orderType, setOrderType] = useState<"single" | "batch">("single");
   const [orderItems, setOrderItems] = useState<{ medicine: MedicineData; quantity: number }[]>([]);
+  const [customerKey, setCustomerKey] = useState(NO_CUSTOMER);
   const [priorityIntent, setPriorityIntent] = useState<PriorityIntent | null>(null);
   const [priorityWarningOpen, setPriorityWarningOpen] = useState(false);
   const [acknowledgedPriority, setAcknowledgedPriority] = useState<Record<string, true>>({});
@@ -265,6 +293,7 @@ export function MedicineCatalog({
   ) => {
     setOrderItems(items);
     setOrderType(type);
+    setCustomerKey(NO_CUSTOMER);
     setOrderDialogOpen(true);
   };
 
@@ -293,7 +322,7 @@ export function MedicineCatalog({
     );
     if (unavailableItem) return;
 
-    const submitted = await onOrder(orderItems);
+    const submitted = await onOrder(orderItems, selectedCustomer?.name);
     if (!submitted) return;
 
     setOrderDialogOpen(false);
@@ -363,8 +392,50 @@ export function MedicineCatalog({
     }
   };
 
+  const customerOptions = useMemo<ComboboxOption[]>(() => {
+    const seen = new Map<string, string>();
+    for (const rule of discountRules) {
+      const key = rule.customer_name.trim().toLowerCase();
+      if (!seen.has(key)) seen.set(key, rule.customer_name);
+    }
+    return [
+      { value: NO_CUSTOMER, label: "No customer (full price)" },
+      ...[...seen.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .map(([key, name]) => ({ value: key, label: name })),
+    ];
+  }, [discountRules]);
+
+  // Highest percentage per medicine name across all of the selected customer's rules.
+  const selectedCustomer = (() => {
+    if (customerKey === NO_CUSTOMER) return null;
+    const rules = discountRules.filter(
+      (rule) => rule.customer_name.trim().toLowerCase() === customerKey,
+    );
+    if (!rules.length) return null;
+    const percentByName = new Map<string, number>();
+    let customerName = "";
+    for (const rule of rules) {
+      customerName = customerName || rule.customer_name;
+      const percent = Number(rule.percentage);
+      for (const name of rule.medicine_names) {
+        const nameKey = name.trim().toLowerCase();
+        if (percent > (percentByName.get(nameKey) ?? 0)) percentByName.set(nameKey, percent);
+      }
+    }
+    return { name: customerName, percentByName };
+  })();
+
+  const discountedUnitPrice = (medicine: MedicineData) => {
+    const base = Number(medicine.price);
+    const percent = selectedCustomer?.percentByName.get(medicine.name.trim().toLowerCase());
+    if (!percent) return { unit: base, percent: 0 };
+    const unit = Math.max(0.01, Math.round(base * (100 - percent)) / 100);
+    return { unit, percent };
+  };
+
   const orderTotal = orderItems.reduce(
-    (sum, { medicine, quantity }) => sum + quantity * Number(medicine.price),
+    (sum, { medicine, quantity }) => sum + quantity * discountedUnitPrice(medicine).unit,
     0,
   );
   const hasInsufficientStock = orderItems.some(
@@ -387,18 +458,26 @@ export function MedicineCatalog({
       !expired &&
       expiryDate != null &&
       (parseISO(expiryDate).getTime() - parseISO(today).getTime()) / 86_400_000 <= 30;
+    const saleRule = saleRulesByMedicineId[String(medicine.id)];
+    const saleRuleLabel = saleRule
+      ? saleRule.kind === "needs_approval"
+        ? "Manager approval · may take a moment"
+        : saleRule.final != null
+          ? `Qty ${saleRule.threshold}–${saleRule.final} may need manager`
+          : `Qty ≥ ${saleRule.threshold} may need manager`
+      : null;
 
     return (
       <Card
         key={String(medicine.id)}
         className={cn(
-          "flex flex-col overflow-hidden rounded-2xl border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.045),rgba(6,14,26,0.42))] transition-colors motion-safe:hover:translate-y-0 hover:border-apex-orange/30 hover:bg-white/6",
-          isSelected && "border-apex-orange/40 bg-[linear-gradient(145deg,rgba(232,149,30,0.075),rgba(6,14,26,0.48))] ring-1 ring-apex-orange/20",
+          "flex flex-col overflow-hidden rounded-2xl border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.045),rgba(6,5,26,0.42))] transition-colors motion-safe:hover:translate-y-0 hover:border-apex-orange/30 hover:bg-white/6",
+          isSelected && "border-apex-orange/40 bg-[linear-gradient(145deg,rgba(168,85,247,0.075),rgba(6,5,26,0.48))] ring-1 ring-apex-orange/20",
           expired && "border-red-400/20 opacity-75",
         )}
       >
         <CardContent className="flex-1 space-y-2.5 p-3">
-          <div className="group/medicine-image relative h-24 overflow-hidden rounded-xl border border-white/10 bg-[radial-gradient(ellipse_at_50%_35%,rgba(232,149,30,0.16),transparent_55%),linear-gradient(145deg,rgba(255,255,255,0.06),rgba(6,14,26,0.82))]">
+          <div className="group/medicine-image relative h-24 overflow-hidden rounded-xl border border-white/10 bg-[radial-gradient(ellipse_at_50%_35%,rgba(168,85,247,0.16),transparent_55%),linear-gradient(145deg,rgba(255,255,255,0.06),rgba(6,5,26,0.82))]">
             {medicine.image_url ? (
               <Image
                 src={medicine.image_url}
@@ -409,7 +488,7 @@ export function MedicineCatalog({
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-apex-orange-light/70">
-                <span className="flex size-10 items-center justify-center rounded-xl border border-apex-orange/20 bg-[#0b1726]/65 shadow-[0_12px_35px_-18px_rgba(232,149,30,0.8)]">
+                <span className="flex size-10 items-center justify-center rounded-xl border border-apex-orange/20 bg-[#0c0a2a]/65 shadow-[0_12px_35px_-18px_rgba(168,85,247,0.8)]">
                   <Package className="size-5" />
                 </span>
                 <span className="text-[0.55rem] font-bold uppercase tracking-[0.18em] text-white/40">
@@ -459,6 +538,16 @@ export function MedicineCatalog({
                 No expiry date
               </Badge>
             )}
+            {saleRuleLabel ? (
+              <Badge
+                variant="outline"
+                className="max-w-full gap-1 border-sky-300/25 bg-sky-400/10 text-[10px] leading-tight text-sky-100"
+                title="Settling this sale may take some time while the manager reviews it."
+              >
+                <Clock3 className="size-3 shrink-0" />
+                {saleRuleLabel}
+              </Badge>
+            ) : null}
           </div>
 
           <div className="flex items-baseline justify-between gap-2 pt-1">
@@ -506,7 +595,7 @@ export function MedicineCatalog({
           ) : null}
         </CardContent>
 
-        <CardFooter className="items-center justify-between gap-2 border-t border-white/8 bg-[#060e1a]/35 p-3">
+        <CardFooter className="items-center justify-between gap-2 border-t border-white/8 bg-[#06051a]/35 p-3">
           <label
             className={cn(
               "flex items-center gap-2 text-xs font-medium",
@@ -555,11 +644,11 @@ export function MedicineCatalog({
     <Card className="workspace-panel-surface gap-3 rounded-[1.75rem] border-apex-orange/16 p-4 sm:gap-4 sm:p-6">
       <CardHeader className="flex flex-col gap-4 px-1 pt-1 sm:flex-row sm:items-center sm:justify-between sm:px-0 sm:pt-0">
         <div className="flex items-start gap-3.5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-apex-orange/25 bg-apex-orange/10 text-apex-orange-light shadow-[inset_0_1px_0_rgba(255,214,160,0.08)]">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-apex-orange/25 bg-apex-orange/10 text-apex-orange-light shadow-[inset_0_1px_0_rgba(233,213,255,0.08)]">
             <Pill className="h-5 w-5" />
           </div>
           <div className="space-y-1.5">
-            <p className="text-[0.62rem] font-extrabold uppercase tracking-[0.22em] text-apex-orange-light/85">
+            <p className="text-[0.62rem] font-bold uppercase tracking-[0.22em] text-apex-orange-light/85">
               Inventory · Order desk
             </p>
             <CardTitle className="font-display text-xl font-semibold tracking-tight text-white sm:text-2xl">
@@ -572,7 +661,7 @@ export function MedicineCatalog({
         </div>
         <Button
           type="button"
-          className="h-10 shrink-0 gap-1.5 bg-[linear-gradient(135deg,var(--apex-orange),#c9760f)] text-white shadow-[0_12px_30px_-18px_rgba(232,149,30,0.75)] hover:brightness-110"
+          className="h-10 shrink-0 gap-1.5 bg-[linear-gradient(135deg,var(--apex-orange),#7e22ce)] text-white shadow-[0_12px_30px_-18px_rgba(168,85,247,0.75)] hover:brightness-110"
           disabled={loading || !selectedItems.length}
           onClick={handleBatchOrder}
         >
@@ -588,7 +677,7 @@ export function MedicineCatalog({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by medicine, supplier, or batch…"
-              className="h-11 rounded-xl border-white/10 bg-[#060e1a]/65 pl-9 text-white placeholder:text-white/45 focus-visible:border-apex-orange/45 focus-visible:ring-apex-orange/20"
+              className="h-11 rounded-xl border-white/10 bg-[#06051a]/65 pl-9 text-white placeholder:text-white/45 focus-visible:border-apex-orange/45 focus-visible:ring-apex-orange/20"
             />
           </div>
           <div className="sm:w-72">
@@ -618,7 +707,7 @@ export function MedicineCatalog({
             {medicineGroups.map(({ key, entries }) =>
               entries.length > 1 ? (
                 <Collapsible key={key} className="col-span-full">
-                  <div className="overflow-hidden rounded-2xl border border-apex-orange/18 bg-[linear-gradient(135deg,rgba(232,149,30,0.07),rgba(11,25,46,0.8)_42%,rgba(6,14,26,0.92))] shadow-[inset_0_1px_0_rgba(255,214,160,0.05)]">
+                  <div className="overflow-hidden rounded-2xl border border-apex-orange/18 bg-[linear-gradient(135deg,rgba(168,85,247,0.07),rgba(13,11,43,0.8)_42%,rgba(6,5,26,0.92))] shadow-[inset_0_1px_0_rgba(233,213,255,0.05)]">
                     <CollapsibleTrigger asChild>
                       <button
                         type="button"
@@ -673,7 +762,7 @@ export function MedicineCatalog({
       </CardContent>
 
       {selectedItems.length > 0 ? (
-        <div className="sticky bottom-3 -mx-1 mt-5 rounded-2xl border border-apex-orange/20 bg-[linear-gradient(110deg,rgba(11,25,46,0.98),rgba(6,14,26,0.98))] px-4 py-3.5 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:bottom-4 sm:mx-0 sm:px-5">
+        <div className="sticky bottom-3 -mx-1 mt-5 rounded-2xl border border-apex-orange/20 bg-[linear-gradient(110deg,rgba(13,11,43,0.98),rgba(6,5,26,0.98))] px-4 py-3.5 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:bottom-4 sm:mx-0 sm:px-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-apex-orange/12 text-apex-orange-light">
@@ -702,7 +791,7 @@ export function MedicineCatalog({
               </Button>
               <Button
                 type="button"
-                className="gap-1.5 bg-[linear-gradient(135deg,var(--apex-orange),#c9760f)] text-white shadow-[0_12px_30px_-18px_rgba(232,149,30,0.75)] hover:brightness-110"
+                className="gap-1.5 bg-[linear-gradient(135deg,var(--apex-orange),#7e22ce)] text-white shadow-[0_12px_30px_-18px_rgba(168,85,247,0.75)] hover:brightness-110"
                 disabled={loading}
                 onClick={handleBatchOrder}
               >
@@ -792,7 +881,29 @@ export function MedicineCatalog({
           </DialogHeader>
 
           <div className="space-y-3">
-            {orderItems.map(({ medicine, quantity }) => (
+            <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/4 p-3">
+              <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-white/50">
+                Customer discount (optional)
+              </p>
+              <Combobox
+                value={customerKey}
+                onChange={setCustomerKey}
+                options={customerOptions}
+                placeholder="Select a customer…"
+                searchPlaceholder="Search customers…"
+                emptyText="No saved customers."
+                disabled={loading}
+              />
+              {selectedCustomer ? (
+                <p className="text-xs text-white/50">
+                  Discounted items are priced below the sales price; other items stay at full price.
+                </p>
+              ) : null}
+            </div>
+
+            {orderItems.map(({ medicine, quantity }) => {
+              const { unit, percent } = discountedUnitPrice(medicine);
+              return (
               <div
                 key={medicine.id}
                 className="flex items-start justify-between gap-4 rounded-xl border border-white/10 bg-white/4 p-3"
@@ -832,8 +943,13 @@ export function MedicineCatalog({
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
                     <span className="text-xs text-white/45">
-                      {quantity} × {formatCurrency(medicine.price)} · {medicine.quantity} available
+                      {quantity} × {formatCurrency(unit)} · {medicine.quantity} available
                     </span>
+                    {percent ? (
+                      <Badge className="border-emerald-400/30 bg-emerald-400/10 text-[10px] text-emerald-200">
+                        {percent}% off
+                      </Badge>
+                    ) : null}
                   </div>
                   {quantity > Number(medicine.quantity) ? (
                     <p className="mt-1 text-sm font-medium text-red-300">
@@ -841,11 +957,19 @@ export function MedicineCatalog({
                     </p>
                   ) : null}
                 </div>
-                <p className="shrink-0 font-semibold tabular-nums text-apex-orange-light">
-                  {formatCurrency(quantity * Number(medicine.price))}
-                </p>
+                <div className="shrink-0 text-right">
+                  {percent ? (
+                    <p className="text-xs tabular-nums text-white/40 line-through">
+                      {formatCurrency(quantity * Number(medicine.price))}
+                    </p>
+                  ) : null}
+                  <p className="font-semibold tabular-nums text-apex-orange-light">
+                    {formatCurrency(quantity * unit)}
+                  </p>
+                </div>
               </div>
-            ))}
+              );
+            })}
 
             <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
               <p className="text-sm text-white/55">Total</p>

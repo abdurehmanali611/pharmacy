@@ -92,7 +92,7 @@ export function Combobox({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "h-11 w-full justify-between gap-2 border-white/12 bg-[#060e1a]/80 font-normal text-white transition-colors hover:border-apex-orange/45 hover:bg-[#14263b] hover:text-white aria-expanded:border-apex-orange/50 aria-expanded:bg-[#14263b] aria-expanded:text-white",
+            "h-11 w-full justify-between gap-2 border-white/12 bg-[#06051a]/80 font-normal text-white transition-colors hover:border-apex-orange/45 hover:bg-[#14263b] hover:text-white aria-expanded:border-apex-orange/50 aria-expanded:bg-[#14263b] aria-expanded:text-white",
             className,
           )}
         >
@@ -111,7 +111,7 @@ export function Combobox({
       <PopoverContent
         align={align}
         className={cn(
-          "w-(--radix-popover-trigger-width) border-apex-orange/20 bg-[#0c1828] p-1.5",
+          "w-(--radix-popover-trigger-width) border-apex-orange/20 bg-[#0b0a28] p-1.5",
           contentClassName,
         )}
       >
@@ -159,6 +159,149 @@ export function Combobox({
                           {option.count}
                         </span>
                       ) : null}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
+ * Searchable multi-select combobox. Selecting toggles values; popover stays open.
+ */
+export function MultiCombobox({
+  values,
+  onChange,
+  options,
+  placeholder = "Select…",
+  emptyText = "No matches.",
+  searchPlaceholder = "Search…",
+  disabled = false,
+  className,
+  contentClassName,
+  id,
+  align = "start",
+}: {
+  values: string[];
+  onChange: (values: string[]) => void;
+  options: ComboboxOption[];
+  placeholder?: string;
+  emptyText?: string;
+  searchPlaceholder?: string;
+  disabled?: boolean;
+  className?: string;
+  contentClassName?: string;
+  id?: string;
+  align?: "start" | "center" | "end";
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const selectedSet = useMemo(() => new Set(values), [values]);
+  const query = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    if (!query) return options;
+    return options.filter((option) => {
+      const haystack =
+        `${option.label} ${option.hint ?? ""} ${option.keywords ?? ""} ${option.value}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [options, query]);
+
+  const selectedLabels = options
+    .filter((option) => selectedSet.has(option.value))
+    .map((option) => option.label);
+
+  const toggle = (value: string) => {
+    if (selectedSet.has(value)) {
+      onChange(values.filter((item) => item !== value));
+      return;
+    }
+    onChange([...values, value]);
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (disabled) return;
+        setOpen(next);
+        if (!next) setSearch("");
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className={cn(
+            "h-11 w-full justify-between gap-2 border-white/12 bg-[#06051a]/80 font-normal text-white transition-colors hover:border-apex-orange/45 hover:bg-[#14263b] hover:text-white aria-expanded:border-apex-orange/50 aria-expanded:bg-[#14263b] aria-expanded:text-white",
+            className,
+          )}
+        >
+          <span
+            className={cn(
+              "min-w-0 truncate text-left",
+              !selectedLabels.length && "text-white/40",
+            )}
+          >
+            {selectedLabels.length
+              ? selectedLabels.length <= 2
+                ? selectedLabels.join(", ")
+                : `${selectedLabels.length} medicines selected`
+              : placeholder}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 text-white/40" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align={align}
+        className={cn(
+          "w-(--radix-popover-trigger-width) border-apex-orange/20 bg-[#0b0a28] p-1.5",
+          contentClassName,
+        )}
+      >
+        <Command shouldFilter={false} className="bg-transparent text-white">
+          <CommandInput
+            placeholder={searchPlaceholder}
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            {filtered.length === 0 ? (
+              <CommandEmpty>{emptyText}</CommandEmpty>
+            ) : (
+              <CommandGroup>
+                {filtered.map((option) => {
+                  const isSelected = selectedSet.has(option.value);
+                  return (
+                    <CommandItem
+                      key={option.value}
+                      value={`${option.value}-${option.label}`}
+                      className="rounded-lg px-3 py-2.5 text-white/75 transition-colors hover:bg-apex-orange/10 hover:text-white data-[selected=true]:bg-apex-orange/18 data-[selected=true]:text-white"
+                      onSelect={() => toggle(option.value)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4 shrink-0",
+                          isSelected ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
+                        {option.icon}
+                        <span className="truncate">{option.label}</span>
+                        {option.hint ? (
+                          <span className="text-muted-foreground">· {option.hint}</span>
+                        ) : null}
+                      </span>
                     </CommandItem>
                   );
                 })}

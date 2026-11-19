@@ -48,6 +48,7 @@ export const addMedicine = z.object({
     price: z.number().positive("Price must be a positive number"),
     cost: z.number().nonnegative("Cost must be a number"),
     quantity: z.number().int().positive("Quantity must be a positive integer"),
+    paid_amount: z.number().nonnegative("Paid amount cannot be negative").optional(),
     batch_number: z.string().min(2, "Please Enter Valid batch number"),
     expiry_date: z
       .union([z.string().min(1, "Please select expiry date"), z.date()])

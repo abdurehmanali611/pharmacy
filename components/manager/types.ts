@@ -4,7 +4,14 @@ export type ManagerSectionKey =
   | "credentials"
   | "invoices"
   | "suppliers"
-  | "cashouts";
+  | "cashouts"
+  | "sales_rules"
+  | "discounts"
+  | "approvals"
+  | "agents"
+  | "inventory_all"
+  | "inventory_credit"
+  | "inventory_paid";
 
 export type ReportSectionKey =
   | "overview"

@@ -95,17 +95,17 @@ export function ManagerAnalyticsCharts({
       if (expiry === "soon") counts.soon += 1;
     }
     return [
-      { name: "OK", count: counts.ok, fill: "#34d399" },
-      { name: "Low", count: counts.low, fill: "#f5b042" },
-      { name: "Critical", count: counts.critical, fill: "#fb923c" },
+      { name: "OK", count: counts.ok, fill: "#10d9a0" },
+      { name: "Low", count: counts.low, fill: "#38bdf8" },
+      { name: "Critical", count: counts.critical, fill: "#f472b6" },
       { name: "Out", count: counts.out, fill: "#f87171" },
-      { name: "Expiring", count: counts.soon, fill: "#fbbf24" },
+      { name: "Expiring", count: counts.soon, fill: "#a78bfa" },
       { name: "Expired", count: counts.expired, fill: "#ef4444" },
     ].filter((row) => row.count > 0);
   }, [getExpiryLevel, getStockLevel, medicines]);
 
   const tooltipStyle = {
-    background: "#0b192e",
+    background: "#0d0b2b",
     border: "1px solid rgba(255,255,255,0.15)",
     borderRadius: 12,
     fontSize: 11,
@@ -133,11 +133,11 @@ export function ManagerAnalyticsCharts({
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }}
+                  tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
-                  width={40}
-                  tickFormatter={(v) => `${v}`}
+                  width={52}
+                  tickFormatter={(v) => (Math.abs(Number(v)) >= 1000 ? `${Math.round(Number(v) / 100) / 10}k` : `${v}`)}
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}
@@ -146,8 +146,8 @@ export function ManagerAnalyticsCharts({
                     name === "sales" ? "Sales" : "Profit",
                   ]}
                 />
-                <Line type="monotone" dataKey="sales" stroke="#f5b042" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="profit" stroke="#34d399" strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="sales" stroke="#f472b6" strokeWidth={3} dot={false} />
+                <Line type="monotone" dataKey="profit" stroke="#22d3ee" strokeWidth={3} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           ) : (

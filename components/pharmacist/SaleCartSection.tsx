@@ -46,7 +46,7 @@ export function SaleCartSection({
 
   return (
     <Card className={`${workspacePanelClass} p-6`}>
-      <CardHeader className="border-b border-apex-orange/12 bg-[linear-gradient(100deg,rgba(232,149,30,0.08),transparent)] px-0 pb-5">
+      <CardHeader className="border-b border-apex-orange/12 bg-[linear-gradient(100deg,rgba(168,85,247,0.08),transparent)] px-0 pb-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="display-kicker text-apex-orange-light/85">Counter</p>
@@ -73,7 +73,7 @@ export function SaleCartSection({
               const insufficientStock = requestedQuantity > availableStock;
 
               return (
-                <div key={field.id} className="rounded-2xl border border-apex-orange/12 bg-[#081422]/70 p-4">
+                <div key={field.id} className="rounded-2xl border border-apex-orange/12 bg-[#0a0824]/70 p-4">
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-base font-semibold text-white/90">{currentItem?.medicine_name}</p>
@@ -160,7 +160,7 @@ export function SaleCartSection({
             </div>
           )}
 
-          <div className="flex items-center justify-between rounded-2xl border border-apex-orange/20 bg-[linear-gradient(120deg,rgba(232,149,30,0.12),rgba(8,20,34,0.8))] p-4">
+          <div className="flex items-center justify-between rounded-2xl border border-apex-orange/20 bg-[linear-gradient(120deg,rgba(168,85,247,0.12),rgba(10,8,36,0.8))] p-4">
             <p className="text-sm text-white/55">Grand total</p>
             <p className="font-display text-3xl font-semibold text-apex-orange-light">
               {formatCurrency(grandTotal)}

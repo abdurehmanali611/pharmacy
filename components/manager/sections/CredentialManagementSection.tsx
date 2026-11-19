@@ -1,159 +1,360 @@
 "use client";
 
+import { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
+import { toast } from "sonner";
+import { IdCard, KeyRound, Lock, Pencil, ShieldCheck, Sparkles, Trash2, UserPlus, UserRound, Users } from "lucide-react";
 import type { z } from "zod";
 
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { ConfirmDeleteButton } from "@/components/manager/ConfirmDeleteButton";
-import { workspacePanelClass, WorkspaceModuleHeader } from "@/components/manager/workspace";
+import {
+  AddLineBar,
+  Chip,
+  EmptyState,
+  FieldLabel,
+  InitialsAvatar,
+  LineNumber,
+  ListToolbar,
+  SectionTitle,
+  tableHeadClass,
+} from "@/components/manager/kit";
+import { workspaceInnerPanelClass, workspacePanelClass } from "@/components/manager/workspace";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { changePasswordWithConfirm, pharmacistCredential } from "@/lib/validations";
+import { createSalesAgents, updateSalesAgent, type UserData } from "@/lib/actions";
+import { changePasswordWithConfirm } from "@/lib/validations";
 import { cn } from "@/lib/utils";
-import type { UserData } from "@/lib/actions";
+
+type AgentLine = {
+  id: string;
+  full_name: string;
+  password: string;
+  confirm_password: string;
+};
+
+const LINE_TINTS = ["violet", "cyan", "pink", "emerald", "amber", "sky"] as const;
+const newLineId = () => Math.random().toString(36).slice(2, 9);
+const emptyLine = (): AgentLine => ({
+  id: newLineId(),
+  full_name: "",
+  password: "",
+  confirm_password: "",
+});
 
 export function CredentialManagementSection({
-  credentialForm,
   passwordForm,
   pharmacists,
   loading,
-  userToEdit,
-  onSubmitCredential,
-  onEditUser,
   onDeleteUser,
-  onCancelEdit,
   onChangePassword,
+  onRefresh,
 }: {
-  credentialForm: UseFormReturn<z.infer<typeof pharmacistCredential>>;
   passwordForm: UseFormReturn<z.infer<typeof changePasswordWithConfirm>>;
   pharmacists: UserData[];
   loading: boolean;
-  userToEdit: UserData | null;
-  onSubmitCredential: (data: z.infer<typeof pharmacistCredential>) => void | Promise<void>;
-  onEditUser: (user: UserData) => void;
   onDeleteUser: (id: string) => void | Promise<void>;
-  onCancelEdit: () => void;
   onChangePassword: (data: z.infer<typeof changePasswordWithConfirm>) => void | Promise<void>;
+  onRefresh: () => void | Promise<void>;
 }) {
+  const [lines, setLines] = useState<AgentLine[]>(() => [emptyLine()]);
+  // One username for the whole team: typed on a single "source" line, mirrored (locked) on the rest.
+  const [batchUsername, setBatchUsername] = useState("");
+  const [sourceId, setSourceId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<UserData | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editConfirm, setEditConfirm] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Once any agent exists, the team's username is saved and cannot be changed.
+  const savedUsername = pharmacists[0]?.username ?? "";
+  const shownUsername = savedUsername || batchUsername;
+  const sourceIndex = lines.findIndex((l) => l.id === sourceId);
+
+  const updateLine = (id: string, patch: Partial<AgentLine>) =>
+    setLines((prev) => prev.map((line) => (line.id === id ? { ...line, ...patch } : line)));
+
+  const usernameEditable = (line: AgentLine) => !savedUsername && (!sourceId || sourceId === line.id);
+
+  const changeUsername = (line: AgentLine, value: string) => {
+    setBatchUsername(value);
+    setSourceId(value ? line.id : null);
+  };
+
+  const removeLine = (id: string) =>
+    setLines((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((l) => l.id !== id);
+      if (id === sourceId) setSourceId(batchUsername ? next[0].id : null);
+      return next;
+    });
+
+  const passwordProblem = (line: AgentLine, index: number) =>
+    line.password && lines.some((other, i) => i !== index && other.password === line.password)
+      ? "Another agent in this batch uses the same password"
+      : null;
+
+  const saveAgents = async () => {
+    const username = shownUsername.trim();
+    if (!username) return toast.error("Enter the username your sales team will use to sign in");
+    if (/\s/.test(username)) return toast.error("Username cannot contain spaces");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const prefix = `Agent #${i + 1}`;
+      if (!line.full_name.trim()) return toast.error(`${prefix}: Enter the full name`);
+      if (line.password.length < 4) return toast.error(`${prefix}: Password must be at least 4 characters`);
+      if (line.password !== line.confirm_password) return toast.error(`${prefix}: Passwords do not match`);
+      const problem = passwordProblem(line, i);
+      if (problem) return toast.error(`${prefix}: ${problem}`);
+    }
+    const result = await createSalesAgents(
+      username,
+      lines.map((line) => ({ full_name: line.full_name.trim(), password: line.password })),
+      setSaving,
+    );
+    if (result) {
+      setLines([emptyLine()]);
+      setBatchUsername("");
+      setSourceId(null);
+      await onRefresh();
+    }
+  };
+
+  const openEdit = (user: UserData) => {
+    setEditing(user);
+    setEditName(user.full_name ?? "");
+    setEditPassword("");
+    setEditConfirm("");
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    if (!editName.trim()) return toast.error("Enter the full name");
+    if (editPassword && editPassword.length < 4) return toast.error("Password must be at least 4 characters");
+    if (editPassword !== editConfirm) return toast.error("Passwords do not match");
+    const result = await updateSalesAgent(editing.id, { full_name: editName.trim(), password: editPassword || undefined }, setSavingEdit);
+    if (result) {
+      setEditing(null);
+      await onRefresh();
+    }
+  };
+
+  const filtered = pharmacists.filter((user) =>
+    `${user.full_name ?? ""} ${user.username}`.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-6 md:grid-cols-2 md:items-stretch">
-        <Card className={cn(workspacePanelClass, "flex h-full flex-col overflow-hidden p-0")}>
-          <WorkspaceModuleHeader
-            kicker="Access"
-            title="Pharmacist credentials"
-            description="Create or update the pharmacist account for this pharmacy."
+      <Card className={cn(workspacePanelClass, "overflow-hidden p-0")}>
+        <CardContent className="space-y-5 p-5 sm:p-6">
+          <SectionTitle
+            icon={UserPlus}
+            tint="violet"
+            title="Create sales agents"
+            subtitle="Add one or many pharmacist accounts at once. The whole team signs in with one username; each agent has their own password"
           />
-          <CardContent className="flex flex-1 flex-col p-6">
-            <form className="flex flex-1 flex-col gap-4" onSubmit={credentialForm.handleSubmit(onSubmitCredential)}>
-              <CustomFormField
-                name="username"
-                control={credentialForm.control}
-                fieldType={formFieldTypes.INPUT}
-                label="Username"
-                placeholder="Enter username"
-              />
-              <CustomFormField
-                name="password"
-                control={credentialForm.control}
-                fieldType={formFieldTypes.INPUT}
-                label="Password"
-                placeholder="Enter password"
-                type="password"
-              />
-              <CustomFormField
-                name="confirm_password"
-                control={credentialForm.control}
-                fieldType={formFieldTypes.INPUT}
-                label="Confirm password"
-                placeholder="Repeat password"
-                type="password"
-              />
-              <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-2">
-                {userToEdit ? (
-                  <Button type="button" variant="secondary" onClick={onCancelEdit}>
-                    Cancel edit
-                  </Button>
-                ) : (
-                  <div />
-                )}
-                <Button type="submit" disabled={loading}>
-                  {loading ? "Saving..." : userToEdit ? "Update pharmacist" : "Create pharmacist"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
 
-        <Card className={cn(workspacePanelClass, "flex h-full flex-col overflow-hidden p-0")}>
-          <WorkspaceModuleHeader
-            kicker="Security"
-            title="Manager password"
-            description="Change the current manager password securely."
-          />
-          <CardContent className="flex flex-1 flex-col p-6">
-            <form className="flex flex-1 flex-col gap-4" onSubmit={passwordForm.handleSubmit(onChangePassword)}>
-              <CustomFormField
-                name="old_password"
-                control={passwordForm.control}
-                fieldType={formFieldTypes.INPUT}
-                label="Current password"
-                placeholder="Enter current password"
-                type="password"
-              />
-              <CustomFormField
-                name="new_password"
-                control={passwordForm.control}
-                fieldType={formFieldTypes.INPUT}
-                label="New password"
-                placeholder="Enter new password"
-                type="password"
-              />
-              <CustomFormField
-                name="confirm_new_password"
-                control={passwordForm.control}
-                fieldType={formFieldTypes.INPUT}
-                label="Confirm password"
-                placeholder="Confirm new password"
-                type="password"
-              />
-              <div className="mt-auto pt-2">
-                <Button type="submit" disabled={loading} className="w-full">
-                  {loading ? "Updating..." : "Update password"}
-                </Button>
+          {savedUsername ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-cyan-300/35 bg-cyan-400/10 px-4 py-3">
+              <span className="tint-icon tint-cyan flex size-9 items-center justify-center rounded-xl">
+                <Lock className="size-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-white">
+                  Sales username: <span className="font-mono text-cyan-100">@{savedUsername}</span>
+                </p>
+                <p className="text-xs text-white/65">
+                  Every sales agent signs in with this username. To change it, delete all sales agents and create them again.
+                </p>
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          ) : null}
+
+          <div className="space-y-4">
+            {lines.map((line, index) => {
+              const editable = usernameEditable(line);
+              const pwProblem = passwordProblem(line, index);
+              return (
+                <div
+                  key={line.id}
+                  className={cn(workspaceInnerPanelClass, "space-y-4 p-5", `tint-${LINE_TINTS[index % LINE_TINTS.length]}`)}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.16em] text-white/85">
+                      <LineNumber index={index} />
+                      Sales agent
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-white/60 hover:bg-rose-500/20 hover:text-rose-200"
+                      disabled={lines.length === 1}
+                      aria-label={`Remove agent ${index + 1}`}
+                      onClick={() => removeLine(line.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div>
+                      <FieldLabel icon={IdCard} tone="violet">Full name</FieldLabel>
+                      <div className="relative">
+                        <IdCard className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-violet-300" />
+                        <Input
+                          value={line.full_name}
+                          onChange={(e) => updateLine(line.id, { full_name: e.target.value })}
+                          placeholder="e.g. Hana Tesfaye"
+                          className="h-11 pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <FieldLabel icon={editable ? UserRound : Lock} tone="cyan">Username (shared)</FieldLabel>
+                      <div className="relative">
+                        {editable ? (
+                          <UserRound className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-cyan-300" />
+                        ) : (
+                          <Lock className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-white/45" />
+                        )}
+                        <Input
+                          value={shownUsername}
+                          onChange={(e) => changeUsername(line, e.target.value)}
+                          disabled={!editable}
+                          placeholder={editable ? "e.g. selam.sales" : ""}
+                          autoComplete="off"
+                          className={cn("h-11 pl-10", !editable && "cursor-not-allowed opacity-70")}
+                        />
+                      </div>
+                      {!editable ? (
+                        <p className="mt-1 text-xs text-white/55">
+                          {savedUsername ? "Saved — can't be edited" : `Set on agent #${sourceIndex + 1}. Edit it there.`}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div>
+                      <FieldLabel icon={KeyRound} tone="pink">Password</FieldLabel>
+                      <div className="relative">
+                        <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-pink-300" />
+                        <Input
+                          type="password"
+                          value={line.password}
+                          onChange={(e) => updateLine(line.id, { password: e.target.value })}
+                          placeholder="At least 4 characters"
+                          autoComplete="new-password"
+                          className={cn("h-11 pl-10", pwProblem && "border-rose-400/70")}
+                        />
+                      </div>
+                      {pwProblem ? <p className="mt-1 text-xs font-bold text-rose-300">Same password as another agent</p> : null}
+                    </div>
+                    <div>
+                      <FieldLabel icon={ShieldCheck} tone="emerald">Confirm password</FieldLabel>
+                      <div className="relative">
+                        <ShieldCheck className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-emerald-300" />
+                        <Input
+                          type="password"
+                          value={line.confirm_password}
+                          onChange={(e) => updateLine(line.id, { confirm_password: e.target.value })}
+                          placeholder="Repeat password"
+                          autoComplete="new-password"
+                          className={cn(
+                            "h-11 pl-10",
+                            line.confirm_password && line.confirm_password !== line.password && "border-rose-400/70",
+                          )}
+                        />
+                      </div>
+                      {line.confirm_password && line.confirm_password !== line.password ? (
+                        <p className="mt-1 text-xs font-bold text-rose-300">Passwords do not match</p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <AddLineBar label="Add another sales agent" onClick={() => setLines((prev) => [...prev, emptyLine()])} />
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5">
+            <p className="text-sm text-white/60">
+              The username is saved with the first agents and can&apos;t be changed unless every sales agent is deleted. Every agent needs a password no other sales agent uses anywhere on the platform.
+            </p>
+            <Button type="button" size="lg" className="min-w-56" disabled={saving || loading} onClick={() => void saveAgents()}>
+              <Sparkles className="mr-1.5 h-4 w-4" />
+              {saving ? "Creating…" : `Create ${lines.length > 1 ? `${lines.length} sales agents` : "sales agent"}`}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className={cn(workspacePanelClass, "overflow-hidden p-0")}>
-        <WorkspaceModuleHeader
-          kicker="Roster"
-          title="Pharmacist roster"
-          description="Current pharmacist account linked to this pharmacy."
-        />
-        <CardContent className="p-6">
+        <CardContent className="space-y-5 p-5 sm:p-6">
+          <SectionTitle
+            icon={Users}
+            tint="cyan"
+            title="Sales agents"
+            subtitle={`Showing ${filtered.length} of ${pharmacists.length} · pharmacist accounts linked to this pharmacy`}
+          />
+          <ListToolbar search={search} onSearchChange={setSearch} searchPlaceholder="Search name or username…" />
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className={tableHeadClass}>Sales agent</TableHead>
+                <TableHead className={tableHeadClass}>Username</TableHead>
+                <TableHead className={tableHeadClass}>Role</TableHead>
+                <TableHead className={cn(tableHeadClass, "text-right")}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pharmacists.length ? (
-                pharmacists.map((user) => (
+              {filtered.length ? (
+                filtered.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium text-foreground">{user.username}</TableCell>
-                    <TableCell>{user.role}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <InitialsAvatar name={user.full_name || user.username} />
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-white">{user.full_name || "No full name yet"}</p>
+                          <p className="text-xs text-white/50">Sales agent</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm text-white/85">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Lock className="size-3 text-white/40" />@{user.username}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Chip seed={user.role || "pharmacist"} className="capitalize">{user.role}</Chip>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          aria-label={`Edit ${user.username}`}
+                          title="Edit"
+                          onClick={() => openEdit(user)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <ConfirmDeleteButton
-                          title="Delete pharmacist account?"
-                          description={`Delete ${user.username}. You can create or assign another pharmacist later.`}
+                          title="Delete sales agent?"
+                          description={`Delete ${user.full_name || user.username}. Their past sales stay in the reports under their name.`}
                           onConfirm={() => onDeleteUser(user.id)}
                           iconOnly
                           ariaLabel={`Delete ${user.username}`}
@@ -163,9 +364,14 @@ export function CredentialManagementSection({
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
-                    No pharmacist accounts found.
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={4} className="p-4">
+                    <EmptyState
+                      icon={Users}
+                      tint="cyan"
+                      title={pharmacists.length ? "No agents match" : "No sales agents yet"}
+                      description={pharmacists.length ? "Try a different search." : "Create your first sales agent above."}
+                    />
                   </TableCell>
                 </TableRow>
               )}
@@ -173,6 +379,94 @@ export function CredentialManagementSection({
           </Table>
         </CardContent>
       </Card>
+
+      <Card className={cn(workspacePanelClass, "overflow-hidden p-0")}>
+        <CardContent className="space-y-5 p-5 sm:p-6">
+          <SectionTitle
+            icon={ShieldCheck}
+            tint="emerald"
+            title="Manager password"
+            subtitle="Change the current manager password securely"
+          />
+          <form className="grid gap-4 md:grid-cols-3" onSubmit={passwordForm.handleSubmit(onChangePassword)}>
+            <CustomFormField
+              name="old_password"
+              control={passwordForm.control}
+              fieldType={formFieldTypes.INPUT}
+              label="Current password"
+              placeholder="Enter current password"
+              type="password"
+            />
+            <CustomFormField
+              name="new_password"
+              control={passwordForm.control}
+              fieldType={formFieldTypes.INPUT}
+              label="New password"
+              placeholder="Enter new password"
+              type="password"
+            />
+            <CustomFormField
+              name="confirm_new_password"
+              control={passwordForm.control}
+              fieldType={formFieldTypes.INPUT}
+              label="Confirm password"
+              placeholder="Confirm new password"
+              type="password"
+            />
+            <div className="md:col-span-3">
+              <Button type="submit" size="lg" disabled={loading}>
+                <KeyRound className="mr-1.5 h-4 w-4" />
+                {loading ? "Updating..." : "Update password"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Dialog open={editing !== null} onOpenChange={(open) => !open && !savingEdit && setEditing(null)}>
+        <DialogContent className="max-h-[90vh] min-w-0 overflow-x-hidden overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2.5 font-display text-xl font-bold">
+              <span className="tint-icon tint-violet flex size-9 items-center justify-center rounded-xl">
+                <Pencil className="size-4" />
+              </span>
+              Edit sales agent
+            </DialogTitle>
+            <DialogDescription>Update the agent&apos;s name or set a new password.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <FieldLabel icon={IdCard} tone="violet">Full name</FieldLabel>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-11" />
+            </div>
+            <div>
+              <FieldLabel icon={Lock} tone="cyan">Username</FieldLabel>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-white/40" />
+                <Input value={editing ? `@${editing.username}` : ""} disabled readOnly className="h-11 cursor-not-allowed pl-10 opacity-70" />
+              </div>
+              <p className="mt-1 text-xs text-white/50">A username is created once and can&apos;t be edited.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <FieldLabel icon={KeyRound} tone="pink">New password (optional)</FieldLabel>
+                <Input type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Leave empty to keep" autoComplete="new-password" className="h-11" />
+                <p className="mt-1 text-xs text-white/50">Must be unique across the platform.</p>
+              </div>
+              <div>
+                <FieldLabel icon={ShieldCheck} tone="emerald">Confirm password</FieldLabel>
+                <Input type="password" value={editConfirm} onChange={(e) => setEditConfirm(e.target.value)} placeholder="Repeat password" autoComplete="new-password" className="h-11" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={savingEdit} onClick={() => setEditing(null)}>Cancel</Button>
+            <Button type="button" disabled={savingEdit} onClick={() => void saveEdit()}>
+              {savingEdit ? "Saving…" : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

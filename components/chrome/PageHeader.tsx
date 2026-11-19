@@ -13,7 +13,7 @@ export function PageHeader({ title, description, className, children }: PageHead
   return (
     <div
       className={cn(
-        "mb-6 flex flex-col gap-4 rounded-[1.75rem] border border-apex-orange/18 bg-[linear-gradient(120deg,rgba(232,149,30,0.12),rgba(11,25,46,0.82)_48%,rgba(15,42,88,0.55))] p-5 shadow-[inset_0_1px_0_rgba(255,214,160,0.1),0_18px_44px_-32px_rgba(0,0,0,0.7)] sm:flex-row sm:items-center sm:justify-between lg:p-6",
+        "mb-6 flex flex-col gap-4 rounded-[1.75rem] border border-apex-orange/18 bg-[linear-gradient(120deg,rgba(168,85,247,0.12),rgba(13,11,43,0.82)_48%,rgba(15,42,88,0.55))] p-5 shadow-[inset_0_1px_0_rgba(233,213,255,0.1),0_18px_44px_-32px_rgba(0,0,0,0.7)] sm:flex-row sm:items-center sm:justify-between lg:p-6",
         className,
       )}
     >

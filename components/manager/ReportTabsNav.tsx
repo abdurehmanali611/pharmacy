@@ -31,12 +31,12 @@ const triggerBase = cn(
   "after:!hidden after:!content-none data-[state=active]:after:!hidden",
   "data-active:!border-apex-orange/35 data-[state=active]:!border-apex-orange/35",
   "data-active:!bg-apex-orange/[0.14] data-[state=active]:!bg-apex-orange/[0.14]",
-  "data-active:!text-[#ffd89a] data-[state=active]:!text-[#ffd89a]",
+  "data-active:!text-[#f0d4ff] data-[state=active]:!text-[#f0d4ff]",
   "data-active:shadow-sm",
 );
 
 const tabsListClass = cn(
-  "mb-6 grid w-full max-w-full grid-cols-2 items-stretch gap-2 rounded-2xl border border-apex-orange/12 bg-[#081422] p-2 shadow-[inset_0_1px_0_rgba(255,214,160,0.06),0_14px_32px_-26px_rgba(0,0,0,0.9)] sm:grid-cols-3 lg:grid-cols-5",
+  "mb-6 grid w-full max-w-full grid-cols-2 items-stretch gap-2 rounded-2xl border border-apex-orange/12 bg-[#0a0824] p-2 shadow-[inset_0_1px_0_rgba(233,213,255,0.06),0_14px_32px_-26px_rgba(0,0,0,0.9)] sm:grid-cols-3 lg:grid-cols-5",
   "!h-auto group-data-horizontal/tabs:!h-auto",
 );
 
@@ -50,7 +50,7 @@ export function ReportTabsNav({ counts }: { counts?: Partial<Record<ReportSectio
             <span className="flex items-center gap-2.5">
               <span
                 className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-apex-orange/12 bg-[#12263f]",
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-apex-orange/12 bg-[#17134a]",
                   "group-data-[state=active]/tab:border-apex-orange/30 group-data-[state=active]/tab:bg-apex-orange/15",
                 )}
               >

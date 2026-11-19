@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import { Bricolage_Grotesque, Manrope } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { APEX, PRODUCT } from "@/constants/branding";
 
-const plusJakarta = Plus_Jakarta_Sans({
+const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
@@ -41,8 +41,8 @@ export default function RootLayout({
       className={cn(
         "h-full dark",
         "antialiased",
-        plusJakarta.variable,
-        spaceGrotesk.variable,
+        manrope.variable,
+        bricolage.variable,
         "font-sans",
       )}
       suppressHydrationWarning

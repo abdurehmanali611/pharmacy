@@ -27,11 +27,11 @@ const inventoryTrend = [
 ];
 
 const stockByCategory = [
-  { name: "Pain", qty: 88, fill: "#f5b042" },
-  { name: "Anti", qty: 62, fill: "#e8951e" },
+  { name: "Pain", qty: 88, fill: "#d8a4ff" },
+  { name: "Anti", qty: 62, fill: "#a855f7" },
   { name: "Malaria", qty: 45, fill: "#c97812" },
-  { name: "Vitamins", qty: 91, fill: "#f5b042" },
-  { name: "Other", qty: 54, fill: "#e8951e" },
+  { name: "Vitamins", qty: 91, fill: "#d8a4ff" },
+  { name: "Other", qty: 54, fill: "#a855f7" },
 ];
 
 const alerts = [
@@ -45,7 +45,7 @@ function BentoPanel({ className, children }: { className?: string; children: Rea
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/14 bg-[#0a1628]/90 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+        "rounded-xl border border-white/14 bg-[#0a0826]/90 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
         className,
       )}
     >
@@ -59,7 +59,7 @@ function InventoryRadarVisual() {
     <div className="flex min-h-[220px] flex-col gap-3 lg:min-h-[260px]">
       <BentoPanel className="flex-1">
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-[0.58rem] font-black uppercase tracking-[0.2em] text-white/50">
+          <p className="text-[0.58rem] font-bold uppercase tracking-[0.2em] text-white/50">
             Stock level · 7 days
           </p>
           <span className="rounded-full border border-red-400/30 bg-red-500/15 px-2 py-0.5 text-[0.55rem] font-bold text-red-300">
@@ -71,8 +71,8 @@ function InventoryRadarVisual() {
             <AreaChart data={inventoryTrend} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
               <defs>
                 <linearGradient id="stockFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#e8951e" stopOpacity={0.55} />
-                  <stop offset="100%" stopColor="#e8951e" stopOpacity={0.05} />
+                  <stop offset="0%" stopColor="#a855f7" stopOpacity={0.55} />
+                  <stop offset="100%" stopColor="#a855f7" stopOpacity={0.05} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
@@ -85,7 +85,7 @@ function InventoryRadarVisual() {
               <YAxis hide domain={[800, 1250]} />
               <Tooltip
                 contentStyle={{
-                  background: "#0b192e",
+                  background: "#0d0b2b",
                   border: "1px solid rgba(255,255,255,0.15)",
                   borderRadius: 10,
                   fontSize: 11,
@@ -96,7 +96,7 @@ function InventoryRadarVisual() {
               <Area
                 type="monotone"
                 dataKey="stock"
-                stroke="#f5b042"
+                stroke="#d8a4ff"
                 strokeWidth={2}
                 fill="url(#stockFill)"
               />
@@ -120,7 +120,7 @@ function InventoryRadarVisual() {
           >
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-[0.65rem] font-medium text-white/80">{a.label}</span>
-              <span className={cn("shrink-0 text-[0.55rem] font-black tracking-wider", a.text)}>
+              <span className={cn("shrink-0 text-[0.55rem] font-bold tracking-wider", a.text)}>
                 {a.level}
               </span>
             </div>
@@ -137,7 +137,7 @@ function InventoryRadarVisual() {
 function MiniBarChart() {
   return (
     <BentoPanel>
-      <p className="mb-2 text-[0.58rem] font-black uppercase tracking-[0.2em] text-white/50">
+      <p className="mb-2 text-[0.58rem] font-bold uppercase tracking-[0.2em] text-white/50">
         Weekly sales
       </p>
       <div className="h-24 w-full">
@@ -153,7 +153,7 @@ function MiniBarChart() {
             <YAxis hide />
             <Tooltip
               contentStyle={{
-                background: "#0b192e",
+                background: "#0d0b2b",
                 border: "1px solid rgba(255,255,255,0.15)",
                 borderRadius: 10,
                 fontSize: 10,
@@ -174,7 +174,7 @@ function MiniBarChart() {
 function MiniSearchUI() {
   return (
     <BentoPanel className="space-y-2">
-      <div className="flex items-center gap-2 rounded-lg border border-white/12 bg-[#060e1a] px-3 py-2">
+      <div className="flex items-center gap-2 rounded-lg border border-white/12 bg-[#06051a] px-3 py-2">
         <Search className="h-3.5 w-3.5 text-apex-orange-light" />
         <span className="text-xs text-white/50">Paracetamol...</span>
       </div>
@@ -278,11 +278,13 @@ const cells = [
   },
 ];
 
+const CELL_HUES = ["orange", "violet", "cyan", "emerald", "rose", "sky", "fuchsia", "lime"] as const;
+
 export function FeatureBento() {
   return (
     <section>
       <div className="mb-10 text-center">
-        <p className="display-kicker text-apex-orange">Platform depth</p>
+        <p className="display-kicker gradient-text-spectrum">Platform depth</p>
         <h2 className="mt-3 font-display text-2xl font-bold tracking-[-0.03em] text-white sm:text-3xl">
           Every module, visually alive
         </h2>
@@ -292,17 +294,17 @@ export function FeatureBento() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cells.map((cell) => (
+        {cells.map((cell, cellIndex) => (
           <div
             key={cell.title}
             className={cn(
-              "group flex flex-col overflow-hidden rounded-[1.75rem] border border-white/14 bg-[linear-gradient(160deg,rgba(255,255,255,0.07)_0%,rgba(11,25,46,0.92)_45%,rgba(6,14,26,0.98)_100%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_24px_60px_-30px_rgba(0,0,0,0.8)] transition duration-300 hover:border-apex-orange/25 lg:p-6",
+              `tint-${CELL_HUES[cellIndex % CELL_HUES.length]} group flex flex-col overflow-hidden rounded-[1.75rem] border border-[rgb(var(--tint)/0.4)] bg-[radial-gradient(ellipse_90%_70%_at_100%_0%,rgb(var(--tint)/0.22),transparent_65%),linear-gradient(160deg,rgba(255,255,255,0.07)_0%,rgba(13,11,43,0.92)_45%,rgba(6,5,26,0.98)_100%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_24px_60px_-30px_rgb(var(--tint)/0.55)] transition duration-300 hover:-translate-y-1 hover:border-[rgb(var(--tint)/0.75)] hover:shadow-[0_28px_70px_-26px_rgb(var(--tint)/0.8)] lg:p-6`,
               cell.span,
               cell.tall && "lg:row-span-2",
             )}
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-apex-orange/30 bg-apex-orange/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
-              <cell.icon className="h-5 w-5 text-apex-orange-light" />
+            <div className="tint-icon flex h-10 w-10 items-center justify-center rounded-xl">
+              <cell.icon className="h-5 w-5" />
             </div>
             <h3 className="mt-4 font-display text-base font-bold text-white">{cell.title}</h3>
             <p className="mt-2 text-sm leading-6 text-white/60">{cell.copy}</p>

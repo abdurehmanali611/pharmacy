@@ -116,7 +116,7 @@ export function ReportDataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-white/10 hover:bg-transparent">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-white/60">
+                  <TableHead key={header.id} className="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-white/60">
                     {!header.isPlaceholder && flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}

@@ -41,14 +41,14 @@ export function LandingExperience() {
           {/* Hero — text left, visual right on lg+ */}
           <section className="relative grid items-center gap-12 lg:grid-cols-2 lg:gap-14">
             {/* Ambient hero wash — warm left, cool right for balance */}
-            <div className="pointer-events-none absolute -inset-x-4 -inset-y-8 rounded-[2.5rem] bg-[radial-gradient(ellipse_55%_60%_at_15%_40%,rgba(232,149,30,0.09),transparent_55%),radial-gradient(ellipse_50%_55%_at_85%_45%,rgba(45,90,150,0.12),transparent_55%)] lg:-inset-x-8" />
+            <div className="pointer-events-none absolute -inset-x-4 -inset-y-8 rounded-[2.5rem] bg-[radial-gradient(ellipse_55%_60%_at_15%_40%,rgba(245,158,11,0.22),transparent_55%),radial-gradient(ellipse_50%_55%_at_85%_45%,rgba(139,92,246,0.26),transparent_55%),radial-gradient(ellipse_45%_50%_at_55%_100%,rgba(6,182,212,0.18),transparent_60%)] lg:-inset-x-8" />
 
             <div className="relative space-y-7">
               <div className="animate-fade-up flex flex-wrap items-center gap-2.5">
-                <Badge className="border-apex-orange/35 bg-apex-orange/15 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.3em] text-apex-orange-light shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] hover:bg-apex-orange/15">
+                <Badge className="border-fuchsia-400/40 bg-[linear-gradient(120deg,rgba(245,158,11,0.25),rgba(217,70,239,0.25))] px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.3em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_22px_-6px_rgba(217,70,239,0.7)]">
                   {APEX.tagline}
                 </Badge>
-                <Badge variant="outline" className="border-white/14 bg-white/8 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.26em] text-white/65">
+                <Badge variant="outline" className="border-white/14 bg-white/8 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.26em] text-white/65">
                   {PRODUCT.tagline}
                 </Badge>
               </div>
@@ -57,7 +57,7 @@ export function LandingExperience() {
                 <h1 className="max-w-xl text-balance font-display text-4xl font-bold leading-[0.95] tracking-[-0.03em] sm:text-5xl lg:text-[3.25rem] lg:leading-[1.02]">
                   <span className="text-white">Pharmacy operations,</span>
                   <br />
-                  <span className="gradient-text-apex">engineered to impress.</span>
+                  <span className="gradient-text-spectrum">engineered to impress.</span>
                 </h1>
                 <p className="max-w-lg text-pretty text-sm leading-7 text-white/65 sm:text-base sm:leading-8">
                   {PRODUCT.name} is the intelligent command center for inventory, sales,

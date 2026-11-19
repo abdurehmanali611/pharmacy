@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Users2 } from "lucide-react";
+import { Trash2, Users2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PhoneInput } from "@/components/phone-input";
+import { AddLineBar, LineNumber } from "@/components/manager/kit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createBatchSuppliers, type createSupplier } from "@/lib/actions";
+
+const LINE_TINTS = ["violet", "cyan", "pink", "emerald", "amber", "sky"] as const;
 
 type SupplierLine = {
   id: string;
@@ -23,7 +26,7 @@ const createEmptyLine = (): SupplierLine => ({
   supplier_email: "",
 });
 
-const fieldLabelClass = "text-[11px] font-semibold text-white/70";
+const fieldLabelClass = "text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-200";
 const fieldControlClass = "h-10 border-white/10 bg-white/[0.04] text-sm";
 const phoneFieldClass =
   "h-10 [&_input]:h-10 [&_input]:rounded-e-lg [&_input]:border-white/10 [&_input]:bg-white/[0.04] [&_input]:text-sm [&_input]:text-white [&_input]:placeholder:text-white/35 [&_button]:h-10 [&_button]:rounded-s-lg [&_button]:border-white/10 [&_button]:bg-white/[0.04] [&_button]:text-white";
@@ -79,15 +82,15 @@ export function BatchSupplierDialog({
   };
 
   return (
-    <section className="overflow-hidden rounded-xl border border-white/10 bg-[#09111f]/90 p-5 text-white shadow-xl sm:p-6">
+    <section className="workspace-panel-surface overflow-hidden p-5 text-white sm:p-6">
         <header className="border-b border-white/10 pb-4">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-apex-orange/30 bg-apex-orange/10 text-apex-orange-light">
+            <span className="tint-icon tint-teal flex size-11 shrink-0 items-center justify-center rounded-2xl">
               <Users2 className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-lg font-bold">Supplier intake</h2>
-              <p className="text-xs text-white/60">
+              <h2 className="font-display text-xl font-bold">Supplier intake</h2>
+              <p className="text-sm text-white/60">
                 Register multiple suppliers and distributors simultaneously using Add Line.
               </p>
             </div>
@@ -99,12 +102,10 @@ export function BatchSupplierDialog({
             {lines.map((line, index) => (
               <div
                 key={line.id}
-                className="relative rounded-xl border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-white/20 sm:p-5"
+                className={`workspace-inner-surface relative p-5 tint-${LINE_TINTS[index % LINE_TINTS.length]}`}
               >
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/80">
-                    Vendor Line #{index + 1}
-                  </span>
+                  <span className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.16em] text-white/85"><LineNumber index={index} />Vendor Line</span>
                   {lines.length > 1 ? (
                     <Button
                       type="button"
@@ -157,15 +158,7 @@ export function BatchSupplierDialog({
             ))}
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addLine}
-            className="w-full gap-2 border-dashed border-white/20 bg-white/[0.02] py-5 text-sm font-semibold text-white/80 hover:border-white/40 hover:bg-white/[0.06] hover:text-white"
-          >
-            <Plus className="h-4 w-4" />
-            Add line
-          </Button>
+          <AddLineBar label="Add another line" onClick={addLine} />
         </div>
 
         <footer className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-4 sm:flex-row">
@@ -177,7 +170,7 @@ export function BatchSupplierDialog({
               type="button"
               disabled={submitting}
               onClick={handleSubmit}
-              className="gap-2 bg-apex-orange font-semibold text-white hover:bg-apex-orange-light"
+              className="min-w-52 gap-2"
             >
               {submitting ? "Registering..." : `Register All ${lines.length} Vendors`}
             </Button>

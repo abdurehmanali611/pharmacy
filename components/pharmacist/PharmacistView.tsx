@@ -3,20 +3,33 @@
 import { useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle, Boxes, Calendar as CalendarIcon, PackageCheck, Pill } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, BellRing, Boxes, Ban, Package, ReceiptText, Calendar as CalendarIcon, PackageCheck, Pill } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/chrome/AppShell";
+import type { HeaderStat } from "@/components/chrome/AppShell";
+import type { AppNotification } from "@/components/chrome/HeaderActions";
 import { MedicineCatalog } from "@/components/pharmacist/MedicineCatalog";
+import { PharmacistApprovalsSection } from "@/components/pharmacist/PharmacistApprovalsSection";
 import { getPharmacistPageMeta, PHARMACIST_NAV, type PharmacistSectionKey } from "@/components/pharmacist/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ReportDataTable } from "@/components/report/ReportDataTable";
-import { CreateBulkPurchase, fetchMedicine, fetchPurchase, Logout } from "@/lib/actions";
+import {
+  CreateBulkPurchase,
+  fetchApprovalRequiredMedicines,
+  fetchDiscountRules,
+  fetchMedicine,
+  fetchPendingSales,
+  fetchPurchase,
+  fetchQuantitySaleRules,
+  Logout,
+} from "@/lib/actions";
 import { formatCurrency } from "@/lib/format";
-import type { MedicineData, PurchaseData } from "@/lib/actions";
+import type { DiscountRuleData, MedicineData, PendingSaleData, PurchaseData } from "@/lib/actions";
+import type { MedicineSaleRuleHint } from "@/components/pharmacist/MedicineCatalog";
 
 const purchaseColumns: ColumnDef<PurchaseData>[] = [
   {
@@ -52,9 +65,15 @@ const purchaseColumns: ColumnDef<PurchaseData>[] = [
 export default function PharmacistView() {
   const [pharmacy, setPharmacy] = useState("");
   const [logo, setLogo] = useState("");
+  const [agentName, setAgentName] = useState("");
   const [selected, setSelected] = useState<PharmacistSectionKey>("register");
   const [medicines, setMedicines] = useState<MedicineData[]>([]);
   const [sales, setSales] = useState<PurchaseData[]>([]);
+  const [pendingSales, setPendingSales] = useState<PendingSaleData[]>([]);
+  const [discountRules, setDiscountRules] = useState<DiscountRuleData[]>([]);
+  const [saleRulesByMedicineId, setSaleRulesByMedicineId] = useState<
+    Record<string, MedicineSaleRuleHint>
+  >({});
   const [salesDay, setSalesDay] = useState(() => new Date().toISOString().slice(0, 10));
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [loading, setLoading] = useState(false);
@@ -84,9 +103,38 @@ export default function PharmacistView() {
   const loadData = async () => {
     setSalesLoading(true);
     try {
-      const [medicineData, purchaseData] = await Promise.all([fetchMedicine(), fetchPurchase()]);
+      const [
+        medicineData,
+        purchaseData,
+        pendingSaleData,
+        quantityRules,
+        approvalRequired,
+        discountRuleData,
+      ] = await Promise.all([
+        fetchMedicine(),
+        fetchPurchase(),
+        fetchPendingSales(),
+        fetchQuantitySaleRules(),
+        fetchApprovalRequiredMedicines(),
+        fetchDiscountRules(),
+      ]);
       setMedicines(medicineData ?? []);
       setSales(purchaseData ?? []);
+      setPendingSales(pendingSaleData ?? []);
+      setDiscountRules(discountRuleData ?? []);
+
+      const rules: Record<string, MedicineSaleRuleHint> = {};
+      for (const rule of quantityRules ?? []) {
+        rules[String(rule.medicine_id)] = {
+          kind: "quantity_band",
+          threshold: rule.threshold,
+          final: rule.final,
+        };
+      }
+      for (const item of approvalRequired ?? []) {
+        rules[String(item.medicine_id)] = { kind: "needs_approval" };
+      }
+      setSaleRulesByMedicineId(rules);
     } finally {
       setSalesLoading(false);
     }
@@ -95,12 +143,17 @@ export default function PharmacistView() {
   useEffect(() => {
     setPharmacy(localStorage.getItem("Pharmacy") ?? "");
     setLogo(localStorage.getItem("Logo") ?? "");
+    setAgentName(localStorage.getItem("FullName") || localStorage.getItem("Username") || "");
     void loadData();
   }, []);
 
-  const handleSubmitOrder = async (entries: { medicine: MedicineData; quantity: number }[]) => {
+  const handleSubmitOrder = async (
+    entries: { medicine: MedicineData; quantity: number }[],
+    customerName?: string,
+  ) => {
     const result = await CreateBulkPurchase(
       {
+        ...(customerName ? { customer_name: customerName } : {}),
         items: entries.map(({ medicine, quantity }) => ({
           medicine_id: Number(medicine.id),
           medicine_name: medicine.name,
@@ -113,6 +166,11 @@ export default function PharmacistView() {
     );
     if (result === undefined) return false;
 
+    if (result.pending) {
+      toast.message("Held for manager approval — check Approvals after they respond.");
+      setSelected("approvals");
+    }
+
     try {
       await loadData();
     } catch {
@@ -122,6 +180,44 @@ export default function PharmacistView() {
   };
 
   const pageMeta = getPharmacistPageMeta(selected);
+
+  const headerStats: HeaderStat[] = (() => {
+    const todayKey = new Date().toDateString();
+    const myId = typeof window !== "undefined" ? localStorage.getItem("UserId") : null;
+    const mine = sales.filter(
+      (p) =>
+        new Date(p.created_at).toDateString() === todayKey &&
+        (!myId || p.sold_by_id == null || String(p.sold_by_id) === myId),
+    );
+    const revenue = mine.reduce((s, p) => s + Number(p.total_price), 0);
+    const units = mine.reduce((s, p) => s + Number(p.quantity), 0);
+    return [
+      { label: "Your sales today", value: formatCurrency(revenue), icon: BadgeDollarSign, tint: "violet" },
+      { label: "Units sold", value: units.toLocaleString(), icon: Package, tint: "cyan" },
+      { label: "Sale lines", value: String(mine.length), icon: ReceiptText, tint: "pink" },
+    ];
+  })();
+
+  const notifications: AppNotification[] = (() => {
+    const list: AppNotification[] = [];
+    const ready = pendingSales.filter((sale) => sale.status === "awaiting_pharmacist").length;
+    if (ready) {
+      list.push({ id: `ready-${ready}`, title: `${ready} sale${ready === 1 ? "" : "s"} ready to confirm`, description: "The manager approved them. Confirm quantities to complete the sale.", tone: "emerald", icon: BellRing, target: "approvals" });
+    }
+    const rejected = pendingSales.filter((sale) => sale.status === "rejected").length;
+    if (rejected) {
+      list.push({ id: `rejected-${rejected}`, title: `${rejected} sale${rejected === 1 ? "" : "s"} rejected by the manager`, description: "Open Approvals to see the reasons.", tone: "rose", icon: Ban, target: "approvals" });
+    }
+    const waiting = pendingSales.filter((sale) => sale.status === "awaiting_manager").length;
+    if (waiting) {
+      list.push({ id: `waiting-${waiting}`, title: `${waiting} sale${waiting === 1 ? "" : "s"} waiting for the manager`, description: "Stock is untouched until they respond.", tone: "amber", icon: BellRing, target: "approvals" });
+    }
+    const low = medicines.filter((m) => Number(m.quantity) > 0 && Number(m.quantity) <= 5).length;
+    if (low) {
+      list.push({ id: `low-${low}`, title: `${low} item${low === 1 ? "" : "s"} running low`, description: "At or below 5 units on the shelf.", tone: "cyan", icon: AlertTriangle, target: "register" });
+    }
+    return list;
+  })();
 
   return (
     <AppShell
@@ -133,11 +229,16 @@ export default function PharmacistView() {
       onSelect={(key) => setSelected(key as PharmacistSectionKey)}
       onLogout={Logout}
       pageTitle={pageMeta.title}
+      userName={agentName}
+      userSubtitle="Sales agent"
+      notifications={notifications}
+      headerStats={headerStats}
+      onRefresh={loadData}
     >
       <div className="mx-auto max-w-7xl space-y-6 pb-8">
         {selected === "register" ? (
           <>
-            <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-apex-orange/22 bg-[linear-gradient(120deg,rgba(232,149,30,0.16),rgba(11,25,46,0.94)_44%,rgba(30,64,175,0.16))] p-5 shadow-[0_24px_70px_-48px_rgba(232,149,30,0.55)] sm:p-6">
+            <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-apex-orange/22 bg-[linear-gradient(120deg,rgba(168,85,247,0.16),rgba(13,11,43,0.94)_44%,rgba(30,64,175,0.16))] p-5 shadow-[0_24px_70px_-48px_rgba(168,85,247,0.55)] sm:p-6">
               <div aria-hidden className="pointer-events-none absolute -right-12 -top-24 h-56 w-56 rounded-full bg-apex-orange/10 blur-3xl" />
               <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="flex items-start gap-4">
@@ -145,7 +246,7 @@ export default function PharmacistView() {
                     <Pill className="h-5 w-5" />
                   </div>
                   <div className="space-y-1.5">
-                    <p className="text-[0.65rem] font-extrabold uppercase tracking-[0.24em] text-apex-orange-light/85">
+                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-apex-orange-light/85">
                       Pharmacist · Sales counter
                     </p>
                     <h2 className="font-display text-xl font-semibold tracking-tight text-white sm:text-2xl">
@@ -158,7 +259,7 @@ export default function PharmacistView() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:min-w-100">
-                  <div className="rounded-2xl border border-white/10 bg-[#060e1a]/45 p-3 sm:p-3.5">
+                  <div className="rounded-2xl border border-white/10 bg-[#06051a]/45 p-3 sm:p-3.5">
                     <div className="flex items-center gap-1.5 text-white/55">
                       <PackageCheck className="h-3.5 w-3.5 text-emerald-300" />
                       <span className="text-[0.62rem] font-semibold uppercase tracking-wider sm:text-xs">In stock</span>
@@ -168,7 +269,7 @@ export default function PharmacistView() {
                     </p>
                     <p className="mt-0.5 text-[0.65rem] text-white/45 sm:text-xs">medicines</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-[#060e1a]/45 p-3 sm:p-3.5">
+                  <div className="rounded-2xl border border-white/10 bg-[#06051a]/45 p-3 sm:p-3.5">
                     <div className="flex items-center gap-1.5 text-white/55">
                       <Boxes className="h-3.5 w-3.5 text-sky-200" />
                       <span className="text-[0.62rem] font-semibold uppercase tracking-wider sm:text-xs">On hand</span>
@@ -197,6 +298,8 @@ export default function PharmacistView() {
               onSelectCategory={setSelectedCategory}
               loading={loading}
               onOrder={handleSubmitOrder}
+              discountRules={discountRules}
+              saleRulesByMedicineId={saleRulesByMedicineId}
             />
           </>
         ) : null}
@@ -205,7 +308,7 @@ export default function PharmacistView() {
           <div className="space-y-6">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[0.65rem] font-extrabold uppercase tracking-[0.24em] text-apex-orange-light/80">
+                <p className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-apex-orange-light/80">
                   Pharmacist · Performance
                 </p>
                 <h2 className="mt-1 font-display text-xl font-semibold tracking-tight text-white sm:text-2xl">
@@ -217,7 +320,7 @@ export default function PharmacistView() {
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              <Card className="glass panel-glow rounded-[1.5rem] border-apex-orange/15 bg-[linear-gradient(145deg,rgba(232,149,30,0.08),rgba(11,25,46,0.45)_60%,rgba(6,14,26,0.65))]">
+              <Card className="glass panel-glow rounded-[1.5rem] border-apex-orange/15 bg-[linear-gradient(145deg,rgba(168,85,247,0.08),rgba(13,11,43,0.45)_60%,rgba(6,5,26,0.65))]">
                 <CardContent className="p-5 sm:p-6">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/55">Total revenue</p>
                   <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-apex-orange-light">
@@ -225,7 +328,7 @@ export default function PharmacistView() {
                   </p>
                 </CardContent>
               </Card>
-              <Card className="glass panel-glow rounded-[1.5rem] border-sky-300/15 bg-[linear-gradient(145deg,rgba(56,110,170,0.12),rgba(11,25,46,0.45)_60%,rgba(6,14,26,0.65))]">
+              <Card className="glass panel-glow rounded-[1.5rem] border-sky-300/15 bg-[linear-gradient(145deg,rgba(99,102,241,0.12),rgba(13,11,43,0.45)_60%,rgba(6,5,26,0.65))]">
                 <CardContent className="p-5 sm:p-6">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/55">Items sold</p>
                   <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-white">
@@ -233,7 +336,7 @@ export default function PharmacistView() {
                   </p>
                 </CardContent>
               </Card>
-              <Card className="glass panel-glow rounded-[1.5rem] border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.045),rgba(11,25,46,0.45)_60%,rgba(6,14,26,0.65))]">
+              <Card className="glass panel-glow rounded-[1.5rem] border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.045),rgba(13,11,43,0.45)_60%,rgba(6,5,26,0.65))]">
                 <CardContent className="p-5 sm:p-6">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/55">Average sale</p>
                   <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-white">
@@ -288,6 +391,14 @@ export default function PharmacistView() {
               </CardContent>
             </Card>
           </div>
+        ) : null}
+
+        {selected === "approvals" ? (
+          <PharmacistApprovalsSection
+            pendingSales={pendingSales}
+            loading={loading || salesLoading}
+            onRefresh={loadData}
+          />
         ) : null}
       </div>
     </AppShell>

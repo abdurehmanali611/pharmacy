@@ -70,7 +70,7 @@ export function DashboardShowcase() {
       <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr] lg:gap-6">
         {/* Main chart panel */}
         <div className="gradient-border-apex overflow-hidden rounded-[1.75rem]">
-          <div className="rounded-[calc(1.75rem-1px)] bg-[linear-gradient(180deg,rgba(11,25,46,0.98),rgba(6,14,26,0.96))] p-5 sm:p-7">
+          <div className="rounded-[calc(1.75rem-1px)] bg-[linear-gradient(180deg,rgba(13,11,43,0.98),rgba(6,5,26,0.96))] p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="display-kicker text-white/40">
@@ -110,12 +110,12 @@ export function DashboardShowcase() {
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "#0b192e",
+                      background: "#0d0b2b",
                       border: "1px solid rgba(255,255,255,0.12)",
                       borderRadius: 14,
                     }}
                   />
-                  <Line type="monotone" dataKey="sales" stroke="#f5b042" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="sales" stroke="#d8a4ff" strokeWidth={2.5} dot={false} />
                   <Line type="monotone" dataKey="profit" stroke="#34d399" strokeWidth={2.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -145,7 +145,7 @@ export function DashboardShowcase() {
                 <m.icon className="h-5 w-5 text-apex-orange-light" />
               </div>
               <div className="min-w-0">
-                <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-white/40">
+                <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-white/40">
                   {m.title}
                 </p>
                 <p className="mt-1 font-display text-xl font-bold text-white">

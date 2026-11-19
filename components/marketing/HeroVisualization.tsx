@@ -51,7 +51,7 @@ function HeroPanel({ className, children }: { className?: string; children: Reac
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/14 bg-[#0a1628]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+        "rounded-xl border border-white/14 bg-[#0a0826]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
         className,
       )}
     >
@@ -91,8 +91,8 @@ export function HeroVisualization({ className }: { className?: string }) {
     <div ref={sceneRef} className={cn("relative mx-auto w-full max-w-[640px] lg:max-w-none", className)}>
       {/* Balanced dual glow — warm + cool */}
       <div className="pointer-events-none absolute inset-0 -z-10 scale-105">
-        <div className="absolute left-1/4 top-1/4 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(232,149,30,0.14),transparent_70%)] blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(50,95,160,0.18),transparent_70%)] blur-3xl" />
+        <div className="absolute left-1/4 top-1/4 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(245,158,11,0.34),transparent_70%)] blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(139,92,246,0.38),transparent_70%)] blur-3xl" />
       </div>
 
       {/* Floating alert card */}
@@ -102,7 +102,7 @@ export function HeroVisualization({ className }: { className?: string }) {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-50" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-400" />
           </span>
-          <p className="text-[0.62rem] font-black uppercase tracking-[0.22em] text-red-300">Live alert</p>
+          <p className="text-[0.62rem] font-bold uppercase tracking-[0.22em] text-red-300">Live alert</p>
         </div>
         <p className="mt-2 text-sm font-semibold text-white/90">3 medicines need action</p>
         <p className="mt-1 text-xs text-white/50">Stock & expiry intelligence</p>
@@ -112,7 +112,7 @@ export function HeroVisualization({ className }: { className?: string }) {
       <HeroPanel className="animate-float-slow absolute -right-2 top-1/3 z-30 hidden w-48 p-3 backdrop-blur-xl sm:block lg:-right-6">
         <div className="flex items-center gap-2 text-apex-orange-light">
           <TrendingUp className="h-4 w-4" />
-          <p className="text-[0.62rem] font-black uppercase tracking-[0.22em]">Today</p>
+          <p className="text-[0.62rem] font-bold uppercase tracking-[0.22em]">Today</p>
         </div>
         <p className="mt-2 font-display text-xl font-bold text-white">ETB 48.2K</p>
         <p className="text-xs text-emerald-300">+18.4% vs yesterday</p>
@@ -125,17 +125,17 @@ export function HeroVisualization({ className }: { className?: string }) {
           transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
         }}
       >
-        <div className="overflow-hidden rounded-[1.35rem] border border-white/14 bg-[linear-gradient(160deg,rgba(255,255,255,0.06)_0%,rgba(11,25,46,0.95)_40%,rgba(6,14,26,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_50px_120px_-40px_rgba(0,0,0,0.9),0_0_60px_-20px_rgba(232,149,30,0.15)]">
+        <div className="overflow-hidden rounded-[1.35rem] border border-white/14 bg-[linear-gradient(160deg,rgba(255,255,255,0.06)_0%,rgba(13,11,43,0.95)_40%,rgba(6,5,26,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_50px_120px_-40px_rgba(0,0,0,0.9),0_0_60px_-20px_rgba(168,85,247,0.15)]">
           <div className="overflow-hidden rounded-[calc(1.35rem-1px)]">
             {/* Browser chrome */}
-            <div className="flex items-center gap-3 border-b border-white/12 bg-[#0b192e] px-4 py-3">
+            <div className="flex items-center gap-3 border-b border-white/12 bg-[#0d0b2b] px-4 py-3">
               <div className="flex gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-red-400/90" />
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-300/90" />
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" />
               </div>
               <div className="flex flex-1 items-center justify-center">
-                <div className="flex w-full max-w-xs items-center gap-2 rounded-lg border border-white/12 bg-[#060e1a] px-3 py-1.5">
+                <div className="flex w-full max-w-xs items-center gap-2 rounded-lg border border-white/12 bg-[#06051a] px-3 py-1.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   <span className="truncate text-[0.65rem] text-white/50">medicare.app / manager / reports</span>
                 </div>
@@ -143,9 +143,9 @@ export function HeroVisualization({ className }: { className?: string }) {
             </div>
 
             {/* App shell mock */}
-            <div className="grid min-h-[380px] grid-cols-[72px_1fr] bg-[#070f1c] sm:min-h-[420px]">
+            <div className="grid min-h-[380px] grid-cols-[72px_1fr] bg-[#07061c] sm:min-h-[420px]">
               {/* Sidebar */}
-              <div className="border-r border-white/10 bg-[#081222] p-2">
+              <div className="border-r border-white/10 bg-[#090720] p-2">
                 <div className="mx-auto mb-4 h-9 w-9 rounded-xl border border-apex-orange/30 bg-apex-orange/18" />
                 {[Package, BarChart3, ReceiptText, AlertTriangle].map((Icon, i) => (
                   <div
@@ -166,7 +166,7 @@ export function HeroVisualization({ className }: { className?: string }) {
               <div className="space-y-3 p-3 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[0.58rem] font-black uppercase tracking-[0.24em] text-apex-orange/90">Manager</p>
+                    <p className="text-[0.58rem] font-bold uppercase tracking-[0.24em] text-apex-orange/90">Manager</p>
                     <p className="font-display text-sm font-bold text-white sm:text-base">{PRODUCT.name} Reports</p>
                   </div>
                   <span className="rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2 py-0.5 text-[0.58rem] font-bold text-emerald-300">
@@ -198,8 +198,8 @@ export function HeroVisualization({ className }: { className?: string }) {
                       <AreaChart data={salesData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
                         <defs>
                           <linearGradient id="heroSalesFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#e8951e" stopOpacity={0.5} />
-                            <stop offset="100%" stopColor="#e8951e" stopOpacity={0.04} />
+                            <stop offset="0%" stopColor="#a855f7" stopOpacity={0.5} />
+                            <stop offset="100%" stopColor="#a855f7" stopOpacity={0.04} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
@@ -207,14 +207,14 @@ export function HeroVisualization({ className }: { className?: string }) {
                         <YAxis hide />
                         <Tooltip
                           contentStyle={{
-                            background: "#0b192e",
+                            background: "#0d0b2b",
                             border: "1px solid rgba(255,255,255,0.15)",
                             borderRadius: 12,
                             fontSize: 11,
                           }}
                           labelStyle={{ color: "#fff" }}
                         />
-                        <Area type="monotone" dataKey="sales" stroke="#f5b042" strokeWidth={2} fill="url(#heroSalesFill)" />
+                        <Area type="monotone" dataKey="sales" stroke="#d8a4ff" strokeWidth={2} fill="url(#heroSalesFill)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
@@ -228,7 +228,7 @@ export function HeroVisualization({ className }: { className?: string }) {
                       className={cn("flex items-center justify-between rounded-lg border px-2 py-1.5", a.tone)}
                     >
                       <span className="truncate text-[0.65rem] font-medium text-white/85">{a.label}</span>
-                      <span className="text-[0.55rem] font-black tracking-wider">{a.level}</span>
+                      <span className="text-[0.55rem] font-bold tracking-wider">{a.level}</span>
                     </div>
                   ))}
                 </div>
@@ -240,12 +240,12 @@ export function HeroVisualization({ className }: { className?: string }) {
 
       {/* Stock mini chart below */}
       <HeroPanel className="animate-float-slow absolute -bottom-6 left-1/2 z-20 hidden w-64 -translate-x-1/2 p-3 backdrop-blur-xl lg:block">
-        <p className="text-[0.58rem] font-black uppercase tracking-[0.22em] text-white/45">Category stock</p>
+        <p className="text-[0.58rem] font-bold uppercase tracking-[0.22em] text-white/45">Category stock</p>
         <div className="mt-2 h-16">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={stockBars} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-              <Bar dataKey="qty" fill="#e8951e" radius={[4, 4, 0, 0]} opacity={0.9} />
+              <Bar dataKey="qty" fill="#a855f7" radius={[4, 4, 0, 0]} opacity={0.9} />
               <XAxis dataKey="cat" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 9 }} axisLine={false} tickLine={false} />
               <YAxis hide />
             </BarChart>

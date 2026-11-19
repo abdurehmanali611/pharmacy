@@ -58,7 +58,7 @@ export function LinkedNamesCell({
 
       <PopoverContent
         align="start"
-        className="w-72 border-white/12 bg-[#0a1628] p-0 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.85)]"
+        className="w-72 border-white/12 bg-[#0a0826] p-0 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.85)]"
       >
         <div className="border-b border-white/10 px-3.5 py-3">
           <div className="flex items-center gap-2.5">
