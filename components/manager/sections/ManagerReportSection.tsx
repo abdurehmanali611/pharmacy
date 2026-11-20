@@ -23,6 +23,7 @@ import {
 import { DateFilterPicker } from "@/components/manager/DateFilterPicker";
 import { ManagerAnalyticsCharts } from "@/components/manager/ManagerAnalyticsCharts";
 import { PharmacyHealthOverview } from "@/components/manager/PharmacyHealthOverview";
+import { ExportMenu } from "@/components/manager/ExportMenu";
 import { ReportRuleImpact } from "@/components/manager/ReportRuleImpact";
 import { Chip, EmptyState, InitialsAvatar, SectionTitle, tableHeadClass } from "@/components/manager/kit";
 import { WorkspacePanel, WorkspaceSectionHeader, WorkspaceStat } from "@/components/manager/workspace";
@@ -420,6 +421,125 @@ export function ManagerReportSection({
         <WorkspaceSectionHeader
           title="Analytics command center"
           description="Sales, credit, expiry and loss intelligence for your pharmacy, in one place."
+          action={
+            <ExportMenu
+              build={() => {
+                const period = reportPeriodBounds(reportMode, reportDay, reportMonth, reportYear, reportQuarter, reportHalf).label;
+                const day = (value?: string | null) => String(value ?? "").slice(0, 10);
+                return {
+                  fileName: `report-${period}`,
+                  title: "Pharmacy report",
+                  subtitle: `Period: ${period}`,
+                  summary: [
+                    ["Total sales", overview.totalSales],
+                    ["Profit", overview.totalProfit],
+                    ["Units sold", overview.totalUnits],
+                    ["Cashouts", overview.totalCashout],
+                    ["Net after cashout", overview.net],
+                    ["Credit owed to suppliers", totalCredit],
+                    ["Near-expiry stock (at cost)", nearValue],
+                    ["Expired stock (at cost)", expiredValue],
+                    ["Damaged / wasted (at cost)", lossValue],
+                    ["Unpaid invoices in period", periodUnpaidTotal],
+                  ],
+                  sections: [
+                    {
+                      name: "Sales",
+                      heading: "Sales in this period",
+                      columns: [
+                        { header: "Date" },
+                        { header: "Medicine" },
+                        { header: "Sold by" },
+                        { header: "Customer" },
+                        { header: "Qty", kind: "number" },
+                        { header: "Discount %", kind: "number" },
+                        { header: "Total", kind: "money" },
+                        { header: "Profit", kind: "money" },
+                      ],
+                      rows: filteredPurchases.map((p) => [
+                        day(p.created_at),
+                        p.medicine_name,
+                        p.sold_by_name ?? "",
+                        p.customer_name ?? "",
+                        toNumber(p.quantity),
+                        toNumber(p.discount_percent),
+                        toNumber(p.total_price),
+                        toNumber(p.profit),
+                      ]),
+                      totals: ["Total", "", "", "", overview.totalUnits, "", overview.totalSales, overview.totalProfit],
+                    },
+                    {
+                      name: "Top sellers",
+                      heading: "Top sellers by revenue",
+                      columns: [{ header: "Medicine" }, { header: "Units sold", kind: "number" }, { header: "Revenue", kind: "money" }],
+                      rows: [...movement.fastList].sort((a, b) => b.revenue - a.revenue).slice(0, 15).map((t) => [t.name, t.qty, t.revenue]),
+                    },
+                    {
+                      name: "Slow movers",
+                      heading: "Slowest movers still in stock",
+                      columns: [{ header: "Medicine" }, { header: "Units sold", kind: "number" }, { header: "In stock", kind: "number" }],
+                      rows: movement.slowList.slice(0, 15).map((m) => [m.name, m.qty, m.inStock]),
+                    },
+                    {
+                      name: "Credit",
+                      heading: "Credit owed to suppliers (oldest first)",
+                      columns: [
+                        { header: "Medicine" },
+                        { header: "Supplier" },
+                        { header: "Since" },
+                        { header: "Total cost", kind: "money" },
+                        { header: "Paid", kind: "money" },
+                        { header: "Owed", kind: "money" },
+                      ],
+                      rows: creditLines.map((m) => [m.name, m.supplier_name ?? "", day(m.created_at), totalCost(m), paidAmount(m), creditDue(m)]),
+                      totals: ["Total", "", "", "", "", totalCredit],
+                    },
+                    {
+                      name: "Expiry",
+                      heading: "Expired and near-expiry stock",
+                      columns: [
+                        { header: "Medicine" },
+                        { header: "Batch" },
+                        { header: "Expiry" },
+                        { header: "Status" },
+                        { header: "In stock", kind: "number" },
+                        { header: "Value at cost", kind: "money" },
+                      ],
+                      rows: [...expiredRows, ...nearRows].map((r) => [
+                        r.m.name,
+                        r.m.batch_number ?? "",
+                        day(r.m.expiry_date),
+                        r.tone === "expired" ? "Expired" : "Expires soon",
+                        toNumber(r.m.quantity),
+                        r.value,
+                      ]),
+                    },
+                    {
+                      name: "Damaged and wasted",
+                      heading: "Damaged / wasted stock",
+                      columns: [
+                        { header: "Date" },
+                        { header: "Medicine" },
+                        { header: "Batch" },
+                        { header: "Qty", kind: "number" },
+                        { header: "Value", kind: "money" },
+                        { header: "Note" },
+                      ],
+                      rows: filteredLosses.map((l) => [day(l.created_at), l.medicine_name, l.batch_number ?? "", toNumber(l.quantity), toNumber(l.value), l.note ?? ""]),
+                      totals: ["Total", "", "", lossQty, lossValue, ""],
+                    },
+                    {
+                      name: "Cashouts",
+                      heading: "Cashouts in this period",
+                      columns: [{ header: "Date" }, { header: "Reason" }, { header: "Amount", kind: "money" }],
+                      rows: filteredCashouts.map((x) => [day(x.created_at), x.reason, toNumber(x.amount)]),
+                      totals: ["Total", "", overview.totalCashout],
+                    },
+                  ],
+                };
+              }}
+            />
+          }
         />
         <div className="space-y-5 p-4 sm:p-6">
           <ReportPeriodFilter

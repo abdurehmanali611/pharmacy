@@ -2,6 +2,7 @@ import {
   BadgePercent,
   BarChart3,
   CreditCard,
+  HandCoins,
   ClipboardCheck,
   Trophy,
   FileText,
@@ -26,6 +27,7 @@ export const MANAGER_NAV: (AppNavItem & { key: ManagerSectionKey })[] = [
   { key: "discounts", label: "Discounts", icon: BadgePercent },
   { key: "approvals", label: "Approvals", icon: ClipboardCheck },
   { key: "credentials", label: "Team", icon: Users },
+  { key: "credit_management", label: "Credit management", icon: HandCoins },
   {
     key: "inventory_all",
     label: "Inventory payment",

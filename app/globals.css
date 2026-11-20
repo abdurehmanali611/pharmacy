@@ -657,8 +657,8 @@
 }
 
 @keyframes auth-orb-a {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; }
-  50% { transform: translate(24px, -18px) scale(1.08); opacity: 0.6; }
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.85; }
+  50% { transform: translate(22px, -16px) scale(1.07); opacity: 0.55; }
 }
 
 @keyframes auth-orb-b {
@@ -677,13 +677,13 @@
 }
 
 @keyframes auth-mark-glow {
-  0%, 100% { box-shadow: 0 0 0 1px rgb(var(--hue-violet) / 0.4), 0 0 24px -8px rgb(var(--hue-fuchsia) / 0.7); }
-  50% { box-shadow: 0 0 0 1px rgb(var(--hue-fuchsia) / 0.6), 0 0 36px -6px rgb(var(--hue-fuchsia) / 0.9); }
+  0%, 100% { box-shadow: 0 0 0 1px rgb(var(--hue-violet) / 0.35), 0 0 21px -9px rgb(var(--hue-fuchsia) / 0.6); }
+  50% { box-shadow: 0 0 0 1px rgb(var(--hue-fuchsia) / 0.5), 0 0 30px -7px rgb(var(--hue-fuchsia) / 0.75); }
 }
 
 @keyframes auth-brand-shine {
   0%, 100% { filter: saturate(1); }
-  50% { filter: saturate(1.4) brightness(1.1); }
+  50% { filter: saturate(1.28) brightness(1.07); }
 }
 
 @layer utilities {
@@ -693,9 +693,9 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background: linear-gradient(110deg, transparent 20%, rgb(var(--hue-fuchsia) / 0.1) 45%, transparent 70%);
+    background: linear-gradient(110deg, transparent 20%, rgb(var(--hue-fuchsia) / 0.07) 45%, transparent 70%);
     background-size: 200% 100%;
-    animation: auth-shimmer 7s linear infinite;
+    animation: auth-shimmer 9s linear infinite;
   }
   .auth-shimmer > * { position: relative; z-index: 1; }
   .auth-orb-a { animation: auth-orb-a 13s ease-in-out infinite; }
@@ -711,14 +711,14 @@
 }
 
 .auth-field {
-  border-color: rgb(var(--hue-violet) / 0.45);
-  background: rgb(9 7 34 / 0.85);
+  border-color: rgb(var(--hue-violet) / 0.4);
+  background: rgb(9 7 34 / 0.82);
   color: #ffffff;
 }
 .auth-field::placeholder { color: #867fc4; }
 .auth-field:focus-visible {
-  border-color: rgb(var(--hue-fuchsia) / 0.95);
-  box-shadow: 0 0 0 3px rgb(var(--hue-fuchsia) / 0.24), 0 0 28px -6px rgb(var(--hue-violet) / 0.8);
+  border-color: rgb(var(--hue-fuchsia) / 0.85);
+  box-shadow: 0 0 0 3px rgb(var(--hue-fuchsia) / 0.2), 0 0 24px -7px rgb(var(--hue-violet) / 0.7);
 }
 
 @media (prefers-reduced-motion: reduce) {

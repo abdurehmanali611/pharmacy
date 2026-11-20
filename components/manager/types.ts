@@ -9,6 +9,7 @@ export type ManagerSectionKey =
   | "discounts"
   | "approvals"
   | "agents"
+  | "credit_management"
   | "inventory_all"
   | "inventory_credit"
   | "inventory_paid";

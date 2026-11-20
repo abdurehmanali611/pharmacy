@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { Chip, EmptyState, InitialsAvatar, ListToolbar, SectionTitle, tableHeadClass } from "@/components/manager/kit";
+import { ExportMenu } from "@/components/manager/ExportMenu";
 import { paginateItems, TablePagination } from "@/components/manager/TablePagination";
 import { WorkspacePanel } from "@/components/manager/workspace";
 import { Button } from "@/components/ui/button";
@@ -506,6 +507,59 @@ export function InventoryPaymentSection({
           tint={copy.tint}
           title={copy.title}
           subtitle={`Showing ${filtered.length} of ${baseRows.length} · ${copy.subtitle}`}
+          right={
+            <ExportMenu
+              build={() => {
+                const owed = filtered.reduce((sum, r) => sum + r.due, 0);
+                const total = filtered.reduce((sum, r) => sum + r.total, 0);
+                const paid = filtered.reduce((sum, r) => sum + r.paid, 0);
+                return {
+                  fileName: `inventory-payment-${mode}`,
+                  title: copy.title,
+                  subtitle: `${filtered.length} stock line${filtered.length === 1 ? "" : "s"} in the current view`,
+                  summary: [
+                    ["Stock lines", filtered.length],
+                    ["Total cost", total],
+                    ["Paid", paid],
+                    ["Credit owed", owed],
+                  ],
+                  sections: [
+                    {
+                      name: copy.title,
+                      heading: copy.title,
+                      columns: [
+                        { header: "Medicine" },
+                        { header: "Supplier" },
+                        { header: "Batch" },
+                        { header: "Received", kind: "number" },
+                        { header: "Sold", kind: "number" },
+                        { header: "Lost", kind: "number" },
+                        { header: "In stock", kind: "number" },
+                        { header: "Total cost", kind: "money" },
+                        { header: "Paid", kind: "money" },
+                        { header: "Owed", kind: "money" },
+                        { header: "Status" },
+                      ],
+                      rows: filtered.map((r) => [
+                        r.medicine.name,
+                        r.medicine.supplier_name ?? "",
+                        r.medicine.batch_number ?? "",
+                        r.received,
+                        r.sold,
+                        r.lost,
+                        r.inStock,
+                        r.total,
+                        r.paid,
+                        r.due,
+                        r.bucket === "credit" ? "Credit" : "Fully paid",
+                      ]),
+                      totals: ["Total", "", "", "", "", "", "", total, paid, owed, ""],
+                    },
+                  ],
+                };
+              }}
+            />
+          }
         />
         <ListToolbar
           search={search}

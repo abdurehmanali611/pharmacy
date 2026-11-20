@@ -33,10 +33,12 @@ import {
   YAxis,
 } from "recharts";
 
+import { ExportMenu } from "@/components/manager/ExportMenu";
 import { Chip, EmptyState, InitialsAvatar, SectionTitle, tableHeadClass } from "@/components/manager/kit";
 import {
   matchesReportPeriod,
   ReportPeriodFilter,
+  reportPeriodBounds,
   type ReportPeriod,
 } from "@/components/manager/sections/ManagerReportSection";
 import { WorkspacePanel, WorkspaceSectionHeader } from "@/components/manager/workspace";
@@ -307,6 +309,80 @@ export function SalesAgentReportsSection({
         <WorkspaceSectionHeader
           title="Sales agent performance"
           description="Activity, sales and side-by-side comparison of every sales agent."
+          action={
+            <ExportMenu
+              build={() => {
+                const period = reportPeriodBounds(reportMode, reportDay, reportMonth, reportYear, reportQuarter, reportHalf).label;
+                const sum = (pick: (a: AgentStats) => number) => agents.reduce((s, a) => s + pick(a), 0);
+                return {
+                  fileName: `agent-report-${period}`,
+                  title: "Sales agent performance",
+                  subtitle: `Period: ${period}`,
+                  summary: [
+                    ["Agent sales", totalRevenue],
+                    ["Agents who sold", active.length],
+                    ["Top performer", top?.name ?? "—"],
+                    ["Most active", byReceipts?.name ?? "—"],
+                    ["Best average sale", byAvg?.name ?? "—"],
+                    ["Held sales approved", heldTotal ? `${settledTotal} of ${heldTotal}` : "—"],
+                  ],
+                  sections: [
+                    {
+                      name: "Agents",
+                      heading: "Agent comparison",
+                      columns: [
+                        { header: "Agent" },
+                        { header: "Revenue", kind: "money" },
+                        { header: "Share %", kind: "number" },
+                        { header: "Profit", kind: "money" },
+                        { header: "Units", kind: "number" },
+                        { header: "Sales", kind: "number" },
+                        { header: "Avg sale", kind: "money" },
+                        { header: "Discounts given", kind: "money" },
+                        { header: "Held sales approved", kind: "text" },
+                      ],
+                      rows: agents.map((a) => [
+                        a.name,
+                        a.revenue,
+                        Math.round(a.share * 10) / 10,
+                        a.profit,
+                        a.units,
+                        a.receipts,
+                        a.avgReceipt,
+                        a.discountGiven,
+                        a.held ? `${a.settled}/${a.held}` : "—",
+                      ]),
+                      totals: ["Total", sum((a) => a.revenue), 100, sum((a) => a.profit), sum((a) => a.units), sum((a) => a.receipts), "", sum((a) => a.discountGiven), ""],
+                    },
+                    {
+                      name: "Sales",
+                      heading: "Sales by agent",
+                      columns: [
+                        { header: "Date" },
+                        { header: "Agent" },
+                        { header: "Medicine" },
+                        { header: "Customer" },
+                        { header: "Qty", kind: "number" },
+                        { header: "Discount %", kind: "number" },
+                        { header: "Total", kind: "money" },
+                      ],
+                      rows: [...periodPurchases]
+                        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                        .map((p) => [
+                          p.created_at.slice(0, 10),
+                          agents.find((a) => a.key === agentKey(p))?.name ?? (p.sold_by_name || "Unassigned"),
+                          p.medicine_name,
+                          p.customer_name ?? "",
+                          toNumber(p.quantity),
+                          toNumber(p.discount_percent),
+                          toNumber(p.total_price),
+                        ]),
+                    },
+                  ],
+                };
+              }}
+            />
+          }
         />
         <div className="space-y-5 p-4 sm:p-6">
           <ReportPeriodFilter

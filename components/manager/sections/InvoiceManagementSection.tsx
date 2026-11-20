@@ -11,6 +11,7 @@ import type { z } from "zod";
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { ConfirmDeleteButton } from "@/components/manager/ConfirmDeleteButton";
 import { EmptyState, ListToolbar, SectionTitle, tableHeadClass } from "@/components/manager/kit";
+import { ExportMenu } from "@/components/manager/ExportMenu";
 import { paginateItems, TablePagination } from "@/components/manager/TablePagination";
 import { BatchInvoiceDialog } from "@/components/manager/batch/BatchInvoiceDialog";
 import {
@@ -391,6 +392,50 @@ export function InvoiceManagementSection({
               tint="sky"
               title="Invoice records"
               subtitle={`Showing ${filteredInvoices.length} of ${invoices.length} · supplier and sales invoices with payment status at a glance`}
+              right={
+                <ExportMenu
+                  build={() => {
+                    const total = filteredInvoices.reduce((sum, i) => sum + Number(i.invoice_amount || 0), 0);
+                    const unpaid = filteredInvoices.filter((i) => i.invoice_status === "unpaid").reduce((sum, i) => sum + Number(i.invoice_amount || 0), 0);
+                    return {
+                      fileName: "invoices",
+                      title: "Invoices",
+                      subtitle: `${filteredInvoices.length} invoice${filteredInvoices.length === 1 ? "" : "s"} in the current view`,
+                      summary: [
+                        ["Invoices", filteredInvoices.length],
+                        ["Total amount", total],
+                        ["Unpaid amount", unpaid],
+                        ["Paid amount", total - unpaid],
+                      ],
+                      sections: [
+                        {
+                          name: "Invoices",
+                          heading: "Invoice records",
+                          columns: [
+                            { header: "Invoice no." },
+                            { header: "Supplier" },
+                            { header: "Type" },
+                            { header: "Date" },
+                            { header: "Payment method" },
+                            { header: "Status" },
+                            { header: "Amount", kind: "money" },
+                          ],
+                          rows: filteredInvoices.map((i) => [
+                            i.invoice_number,
+                            i.supplier_name ?? "",
+                            i.invoice_type,
+                            String(i.invoice_date ?? "").slice(0, 10),
+                            i.invoice_payment_method,
+                            i.invoice_status === "paid" ? "Paid" : "Unpaid",
+                            Number(i.invoice_amount || 0),
+                          ]),
+                          totals: ["Total", "", "", "", "", "", total],
+                        },
+                      ],
+                    };
+                  }}
+                />
+              }
             />
             <ListToolbar
               search={search}

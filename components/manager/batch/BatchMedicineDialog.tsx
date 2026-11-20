@@ -183,7 +183,7 @@ export function BatchMedicineDialog({
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-white/70">Medicine Name</label>
                     <Input
@@ -216,18 +216,6 @@ export function BatchMedicineDialog({
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-white/70">Batch Number</label>
-                    <Input
-                      placeholder="e.g. BATCH-2026-X"
-                      value={line.batch_number}
-                      onChange={(e) => updateLine(line.id, "batch_number", e.target.value)}
-                      className="h-10 border-white/10 bg-white/4 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-white/70">Sale Price (ETB)</label>
                     <Input
@@ -262,27 +250,13 @@ export function BatchMedicineDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-white/70">Paid Amount (ETB)</label>
+                    <label className="text-[11px] font-semibold text-white/70">Batch Number</label>
                     <Input
-                      type="number"
-                      min={0}
-                      max={lineTotal(line) || undefined}
-                      placeholder="0.00"
-                      value={line.paid_touched ? line.paid_amount : lineTotal(line) ? String(lineTotal(line)) : ""}
-                      onChange={(e) => updatePaid(line.id, e.target.value)}
+                      placeholder="e.g. BATCH-2026-X"
+                      value={line.batch_number}
+                      onChange={(e) => updateLine(line.id, "batch_number", e.target.value)}
                       className="h-10 border-white/10 bg-white/4 text-sm"
                     />
-                    {lineTotal(line) > 0 ? (
-                      linePaid(line) - lineTotal(line) > 0.005 ? (
-                        <p className="text-[11px] font-bold text-rose-300">Cannot exceed {formatCurrency(lineTotal(line))}</p>
-                      ) : lineTotal(line) - linePaid(line) > 0.005 ? (
-                        <p className="text-[11px] font-bold text-rose-200">
-                          On credit · {formatCurrency(lineTotal(line) - linePaid(line))} due
-                        </p>
-                      ) : (
-                        <p className="text-[11px] font-bold text-emerald-300">Fully paid</p>
-                      )
-                    ) : null}
                   </div>
 
                   <div className="space-y-1">
@@ -316,6 +290,30 @@ export function BatchMedicineDialog({
                         />
                       </PopoverContent>
                     </Popover>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-white/70">Paid Amount (ETB)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={lineTotal(line) || undefined}
+                      placeholder="0.00"
+                      value={line.paid_touched ? line.paid_amount : lineTotal(line) ? String(lineTotal(line)) : ""}
+                      onChange={(e) => updatePaid(line.id, e.target.value)}
+                      className="h-10 border-white/10 bg-white/4 text-sm"
+                    />
+                    {lineTotal(line) > 0 ? (
+                      linePaid(line) - lineTotal(line) > 0.005 ? (
+                        <p className="text-[11px] font-bold text-rose-300">Cannot exceed {formatCurrency(lineTotal(line))}</p>
+                      ) : lineTotal(line) - linePaid(line) > 0.005 ? (
+                        <p className="text-[11px] font-bold text-rose-200">
+                          On credit · {formatCurrency(lineTotal(line) - linePaid(line))} due
+                        </p>
+                      ) : (
+                        <p className="text-[11px] font-bold text-emerald-300">Fully paid</p>
+                      )
+                    ) : null}
                   </div>
                 </div>
 

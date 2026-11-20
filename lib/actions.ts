@@ -573,6 +573,72 @@ export async function registerStockLoss(
   }
 }
 
+export interface CreditPaymentData {
+  id: number;
+  medicine_id: number;
+  medicine_name: string;
+  batch_number?: string;
+  supplier_name?: string;
+  amount: number | string;
+  fully_paid: boolean;
+  total_cost: number | string;
+  credit_amount: number | string;
+  recorded_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchCreditPayments() {
+  try {
+    const response = await api.get("/medicines/credit_payments/");
+    return unwrapResults<CreditPaymentData>(response.data);
+  } catch {
+    return [] as CreditPaymentData[];
+  }
+}
+
+export async function updateCreditPayment(id: number | string, amount: number, setLoading: (loading: boolean) => void) {
+  try {
+    setLoading(true);
+    const response = await api.patch(`/medicines/credit_payments/${id}/`, { amount: amount.toFixed(2) });
+    toast.success("Payment updated");
+    return response.data as CreditPaymentData;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to update the payment"));
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function deleteCreditPayment(id: number | string) {
+  try {
+    await api.delete(`/medicines/credit_payments/${id}/`);
+    toast.success("Payment deleted — the credit is back to what it was");
+    return true;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to delete the payment"));
+    return false;
+  }
+}
+
+export async function payMedicineCredit(
+  items: { medicine_id: number | string; amount: number }[],
+  setLoading: (loading: boolean) => void,
+) {
+  try {
+    setLoading(true);
+    const response = await api.post("/medicines/pay_credit/", {
+      items: items.map((i) => ({ medicine_id: Number(i.medicine_id), amount: i.amount.toFixed(2) })),
+    });
+    toast.success(response.data?.detail ?? "Payment recorded");
+    return response.data;
+  } catch (error: any) {
+    toast.error(getApiErrorMessage(error, "Failed to record the payment"));
+  } finally {
+    setLoading(false);
+  }
+}
+
 export async function createMedicine(data: addMedicine, setLoading: (loading: boolean) => void) {
   try {
     setLoading(true);

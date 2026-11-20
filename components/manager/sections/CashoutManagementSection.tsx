@@ -9,6 +9,7 @@ import type { z } from "zod";
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { ConfirmDeleteButton } from "@/components/manager/ConfirmDeleteButton";
 import { EmptyState, ListToolbar, SectionTitle, tableHeadClass } from "@/components/manager/kit";
+import { ExportMenu } from "@/components/manager/ExportMenu";
 import { DateFilterPicker } from "@/components/manager/DateFilterPicker";
 import { paginateItems, TablePagination } from "@/components/manager/TablePagination";
 import { BatchCashoutDialog } from "@/components/manager/batch/BatchCashoutDialog";
@@ -135,6 +136,31 @@ export function CashoutManagementSection({
             tint="pink"
             title="Cashout history"
             subtitle={`Showing ${filteredCashouts.length} of ${cashouts.length} · every cashout is saved per pharmacy with amount and reason`}
+            right={
+              <ExportMenu
+                build={() => {
+                  const total = filteredCashouts.reduce((sum, i) => sum + Number(i.amount || 0), 0);
+                  return {
+                    fileName: "cashouts",
+                    title: "Cashouts",
+                    subtitle: `${filteredCashouts.length} cashout${filteredCashouts.length === 1 ? "" : "s"} in the current view`,
+                    summary: [
+                      ["Cashouts", filteredCashouts.length],
+                      ["Total cashed out", total],
+                    ],
+                    sections: [
+                      {
+                        name: "Cashouts",
+                        heading: "Cashout history",
+                        columns: [{ header: "Date" }, { header: "Reason" }, { header: "Amount", kind: "money" }],
+                        rows: filteredCashouts.map((i) => [String(i.created_at ?? "").slice(0, 10), i.reason, Number(i.amount || 0)]),
+                        totals: ["Total", "", total],
+                      },
+                    ],
+                  };
+                }}
+              />
+            }
           />
           <ListToolbar
             search={search}

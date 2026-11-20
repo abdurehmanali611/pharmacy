@@ -17,6 +17,7 @@ import { CashoutManagementSection } from "@/components/manager/sections/CashoutM
 import { DiscountRulesSection } from "@/components/manager/sections/DiscountRulesSection";
 import { CredentialManagementSection } from "@/components/manager/sections/CredentialManagementSection";
 import { InvoiceManagementSection } from "@/components/manager/sections/InvoiceManagementSection";
+import { CreditManagementSection } from "@/components/manager/sections/CreditManagementSection";
 import { SalesAgentReportsSection } from "@/components/manager/sections/SalesAgentReportsSection";
 import { InventoryPaymentSection } from "@/components/manager/sections/InventoryPaymentSection";
 import { ManagerReportSection } from "@/components/manager/sections/ManagerReportSection";
@@ -48,6 +49,7 @@ import {
   fetchMedicinePage,
   fetchPendingSales,
   fetchPurchase,
+  fetchCreditPayments,
   fetchStockLosses,
   fetchQuantitySaleRules,
   fetchSuppliers,
@@ -57,6 +59,7 @@ import {
   type ApprovalRequiredMedicineData,
   type CashoutData,
   type DiscountRuleData,
+  type CreditPaymentData,
   type InvoiceData,
   type MedicineData,
   type PendingSaleData,
@@ -101,6 +104,7 @@ export default function ManagerView() {
   const [pendingSales, setPendingSales] = useState<PendingSaleData[]>([]);
   const [discountRules, setDiscountRules] = useState<DiscountRuleData[]>([]);
   const [stockLosses, setStockLosses] = useState<StockLossData[]>([]);
+  const [creditPayments, setCreditPayments] = useState<CreditPaymentData[]>([]);
 
   const medicineFormDefaults: z.infer<typeof addMedicine> = useMemo(
     () => ({
@@ -215,6 +219,7 @@ export default function ManagerView() {
       pendingSaleData,
       discountRuleData,
       stockLossData,
+      creditPaymentData,
     ] = await Promise.all([
       fetchPurchase(),
       fetchCashouts(),
@@ -227,6 +232,7 @@ export default function ManagerView() {
       fetchPendingSales(),
       fetchDiscountRules(),
       fetchStockLosses(),
+      fetchCreditPayments(),
     ]);
 
     setPurchases(purchaseData ?? []);
@@ -240,6 +246,7 @@ export default function ManagerView() {
     setPendingSales(pendingSaleData ?? []);
     setDiscountRules(discountRuleData ?? []);
     setStockLosses(stockLossData ?? []);
+    setCreditPayments(creditPaymentData ?? []);
     await loadMedicinesPage({ page: 1 });
     setMedicinePage(1);
   };
@@ -529,6 +536,10 @@ export default function ManagerView() {
         <SalesAgentReportsSection pharmacists={pharmacists} purchases={purchases} pendingSales={pendingSales} />
       ) : null}
 
+      {selected === "credit_management" ? (
+        <CreditManagementSection medicines={allMedicines} payments={creditPayments} onRefresh={loadAll} />
+      ) : null}
+
       {selected === "inventory_all" || selected === "inventory_credit" || selected === "inventory_paid" ? (
         <InventoryPaymentSection
           mode={selected === "inventory_credit" ? "credit" : selected === "inventory_paid" ? "paid" : "all"}
@@ -541,6 +552,7 @@ export default function ManagerView() {
 
       {selected === "medicines" ? (
         <MedicineManagementSection
+          exportMedicines={allMedicines}
           form={medicineForm}
           loading={loading}
           importing={importingMedicines}

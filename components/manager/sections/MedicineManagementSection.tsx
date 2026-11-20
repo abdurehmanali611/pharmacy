@@ -11,6 +11,7 @@ import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { ConfirmDeleteButton } from "@/components/manager/ConfirmDeleteButton";
 import { DateFilterPicker } from "@/components/manager/DateFilterPicker";
 import { Chip, EmptyState, ListToolbar, SectionTitle, tableHeadClass } from "@/components/manager/kit";
+import { ExportMenu } from "@/components/manager/ExportMenu";
 import { BatchMedicineDialog } from "@/components/manager/batch/BatchMedicineDialog";
 import {
   workspaceInnerPanelClass,
@@ -95,6 +96,7 @@ export function MedicineManagementSection({
   medicineSearch,
   medicineCreatedDate,
   suppliers,
+  exportMedicines,
   onSearchChange,
   onCreatedDateChange,
   onSubmit,
@@ -115,6 +117,8 @@ export function MedicineManagementSection({
   medicineSearch: string;
   medicineCreatedDate: string;
   suppliers: SupplierData[];
+  /** Every medicine (not just this page), used for the Excel export. */
+  exportMedicines?: MedicineData[];
   onSearchChange: (value: string) => void;
   onCreatedDateChange: (value: string) => void;
   onSubmit: (data: z.infer<typeof addMedicine>) => void | Promise<void>;
@@ -230,8 +234,6 @@ export function MedicineManagementSection({
                       <p className="text-sm text-destructive">{form.formState.errors.supplier_id.message}</p>
                     ) : null}
                   </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   <CustomFormField
                     name="price"
                     control={form.control}
@@ -280,8 +282,6 @@ export function MedicineManagementSection({
                     labelClassName={medicineEditLabelClass}
                     inputClassName={`${medicineEditControlClass} w-full justify-between px-3 font-normal`}
                   />
-                </div>
-                <div className="grid gap-3 rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/6 p-4 md:grid-cols-[minmax(0,16rem)_1fr] md:items-center">
                   <CustomFormField
                     name="paid_amount"
                     control={form.control}
@@ -292,6 +292,8 @@ export function MedicineManagementSection({
                     labelClassName={medicineEditLabelClass}
                     inputClassName={medicineEditControlClass}
                   />
+                </div>
+                <div className="rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/6 p-4">
                   <PaidSummary
                     received={Number(medicineToEdit.received_quantity ?? medicineToEdit.quantity) + (Number(form.watch("quantity") || 0) - Number(medicineToEdit.quantity))}
                     cost={Number(form.watch("cost") || 0)}
@@ -359,6 +361,52 @@ export function MedicineManagementSection({
               tint="emerald"
               title="Medicine inventory"
               subtitle="Search, filter, and act on stock levels and expiry urgency in real time"
+              right={
+                <ExportMenu
+                  pdf={false}
+                  build={() => {
+                    const list = exportMedicines ?? medicines;
+                    return {
+                      fileName: "medicines",
+                      title: "Medicine inventory",
+                      subtitle: `${list.length} stock line${list.length === 1 ? "" : "s"}`,
+                      sections: [
+                        {
+                          name: "Medicines",
+                          columns: [
+                            { header: "Medicine" },
+                            { header: "Category" },
+                            { header: "Supplier" },
+                            { header: "Batch" },
+                            { header: "In stock", kind: "number" },
+                            { header: "Received", kind: "number" },
+                            { header: "Cost price", kind: "money" },
+                            { header: "Sale price", kind: "money" },
+                            { header: "Total cost", kind: "money" },
+                            { header: "Paid", kind: "money" },
+                            { header: "Credit owed", kind: "money" },
+                            { header: "Expiry" },
+                          ],
+                          rows: list.map((m) => [
+                            m.name,
+                            m.category ?? "",
+                            m.supplier_name ?? "",
+                            m.batch_number ?? "",
+                            Number(m.quantity || 0),
+                            Number(m.received_quantity ?? m.quantity ?? 0),
+                            Number(m.cost || 0),
+                            Number(m.price || 0),
+                            Number(m.total_cost ?? 0),
+                            Number(m.paid_amount ?? 0),
+                            Number(m.credit_amount ?? 0),
+                            String(m.expiry_date ?? "").slice(0, 10),
+                          ]),
+                        },
+                      ],
+                    };
+                  }}
+                />
+              }
             />
             <ListToolbar
               search={medicineSearch}

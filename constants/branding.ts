@@ -11,6 +11,8 @@ export const APEX = {
 
 export const PRODUCT = {
   name: "Medicare",
+  /** Wide wordmark trimmed from public/assets/medicare.png. */
+  logo: "/assets/medicare-logo.png",
   tagline: "Pharmacy Management System",
   description:
     "An intelligent pharmacy command center for inventory, sales, suppliers, invoices, and financial reporting — engineered by Apex Solution.",

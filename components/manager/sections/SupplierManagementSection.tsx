@@ -7,6 +7,7 @@ import type { z } from "zod";
 
 import CustomFormField, { formFieldTypes } from "@/components/customFormField";
 import { Chip, EmptyState, InitialsAvatar, ListToolbar, SectionTitle, tableHeadClass } from "@/components/manager/kit";
+import { ExportMenu } from "@/components/manager/ExportMenu";
 import { SupplierMedicinesHoverDetail } from "@/components/manager/SupplierMedicinesHoverDetail";
 import { BatchSupplierDialog } from "@/components/manager/batch/BatchSupplierDialog";
 import { paginateItems, TablePagination } from "@/components/manager/TablePagination";
@@ -152,6 +153,40 @@ export function SupplierManagementSection({
             tint="teal"
             title="Supplier records"
             subtitle={`Showing ${filteredSuppliers.length} of ${suppliers.length} · each supplier shows linked medicines and invoices`}
+            right={
+              <ExportMenu
+                pdf={false}
+                build={() => ({
+                  fileName: "suppliers",
+                  title: "Suppliers",
+                  subtitle: `${filteredSuppliers.length} supplier${filteredSuppliers.length === 1 ? "" : "s"} in the current view`,
+                  sections: [
+                    {
+                      name: "Suppliers",
+                      columns: [
+                        { header: "Supplier" },
+                        { header: "Phone" },
+                        { header: "Email" },
+                        { header: "Medicines", kind: "number" },
+                        { header: "Invoices", kind: "number" },
+                        { header: "Unpaid invoices", kind: "money" },
+                      ],
+                      rows: filteredSuppliers.map((sup) => {
+                        const theirInvoices = invoices.filter((i) => i.supplier_name === sup.supplier_name);
+                        return [
+                          sup.supplier_name,
+                          sup.supplier_phone,
+                          sup.supplier_email,
+                          medicines.filter((m) => m.supplier_name === sup.supplier_name).length,
+                          theirInvoices.length,
+                          theirInvoices.filter((i) => i.invoice_status === "unpaid").reduce((sum, i) => sum + Number(i.invoice_amount || 0), 0),
+                        ];
+                      }),
+                    },
+                  ],
+                })}
+              />
+            }
           />
           <ListToolbar
             search={search}
