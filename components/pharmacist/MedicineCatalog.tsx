@@ -5,10 +5,12 @@ import {
   ChevronDown,
   Clock3,
   LayoutGrid,
-  Minus,
   Package,
   Pill,
+  Percent,
   Plus,
+  ReceiptText,
+  Scissors,
   Search,
   ShoppingBag,
   TriangleAlert,
@@ -53,6 +55,9 @@ import { Input } from "@/components/ui/input";
 import { DRUG_CATEGORIES } from "@/constants";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { hasStock, isSplittable, looseName, maxQuantity, packName, plural, stockText, unitPrice, unitWord, type SaleUnit } from "@/lib/packSelling";
+import { SaleUnitToggle } from "@/components/pharmacist/SaleUnitToggle";
+import { QuantityStepper } from "@/components/pharmacist/QuantityStepper";
 import type { DiscountRuleData, MedicineData } from "@/lib/actions";
 
 function getStockTone(quantity: number) {
@@ -89,12 +94,13 @@ function medicineNameKey(name: string) {
 type PriorityIntent =
   | { kind: "select"; medicine: MedicineData }
   | { kind: "single"; medicine: MedicineData }
-  | { kind: "batch"; items: { medicine: MedicineData; quantity: number }[] };
+  | { kind: "batch"; items: { medicine: MedicineData; quantity: number; saleUnit?: SaleUnit }[] };
 
 export type MedicineSaleRuleHint = {
   kind: "needs_approval" | "quantity_band";
   threshold?: number;
   final?: number | null;
+  unit?: "pack" | "loose";
 };
 
 const NO_CUSTOMER = "__none__";
@@ -114,7 +120,7 @@ export function MedicineCatalog({
   onSelectCategory: (category: string) => void;
   loading: boolean;
   onOrder: (
-    items: { medicine: MedicineData; quantity: number }[],
+    items: { medicine: MedicineData; quantity: number; saleUnit?: SaleUnit }[],
     customerName?: string,
   ) => Promise<boolean>;
   saleRulesByMedicineId?: Record<string, MedicineSaleRuleHint>;
@@ -124,7 +130,8 @@ export function MedicineCatalog({
   const [selectedIds, setSelectedIds] = useState<Record<string, number>>({});
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [orderType, setOrderType] = useState<"single" | "batch">("single");
-  const [orderItems, setOrderItems] = useState<{ medicine: MedicineData; quantity: number }[]>([]);
+  const [orderItems, setOrderItems] = useState<{ medicine: MedicineData; quantity: number; saleUnit?: SaleUnit }[]>([]);
+  const [selectedUnits, setSelectedUnits] = useState<Record<string, SaleUnit>>({});
   const [customerKey, setCustomerKey] = useState(NO_CUSTOMER);
   const [priorityIntent, setPriorityIntent] = useState<PriorityIntent | null>(null);
   const [priorityWarningOpen, setPriorityWarningOpen] = useState(false);
@@ -132,7 +139,7 @@ export function MedicineCatalog({
   const today = format(new Date(), "yyyy-MM-dd");
 
   const availableMedicines = useMemo(
-    () => medicines.filter((medicine) => Number(medicine.quantity) > 0),
+    () => medicines.filter((medicine) => hasStock(medicine)),
     [medicines],
   );
 
@@ -245,15 +252,15 @@ export function MedicineCatalog({
       Object.entries(selectedIds)
         .map(([id, quantity]) => {
           const medicine = availableMedicines.find((item) => String(item.id) === id);
-          return medicine ? { medicine, quantity } : null;
+          return medicine ? { medicine, quantity, saleUnit: selectedUnits[id] ?? ("pack" as SaleUnit) } : null;
         })
-        .filter((entry): entry is { medicine: MedicineData; quantity: number } => entry !== null),
-    [selectedIds, availableMedicines],
+        .filter((entry): entry is { medicine: MedicineData; quantity: number; saleUnit: SaleUnit } => entry !== null),
+    [selectedIds, availableMedicines, selectedUnits],
   );
 
   const totalSelectedQuantity = selectedItems.reduce((sum, entry) => sum + entry.quantity, 0);
   const totalSelectedAmount = selectedItems.reduce(
-    (sum, entry) => sum + entry.quantity * Number(entry.medicine.price),
+    (sum, entry) => sum + entry.quantity * unitPrice(entry.medicine, entry.saleUnit),
     0,
   );
 
@@ -274,21 +281,24 @@ export function MedicineCatalog({
     });
   };
 
-  const updateSelectionQuantity = (medicine: MedicineData, delta: number) => {
+  const setSelectionQuantity = (medicine: MedicineData, quantity: number) => {
     const medicineId = String(medicine.id);
-    setSelectedIds((prev) => {
-      const current = prev[medicineId];
-      if (current == null) return prev;
-      const next = Math.min(Math.max(1, current + delta), Math.max(1, Number(medicine.quantity)));
-      if (next === current) return prev;
-      return { ...prev, [medicineId]: next };
-    });
+    const limit = Math.max(1, maxQuantity(medicine, selectedUnits[medicineId] ?? "pack"));
+    const next = Math.min(Math.max(1, Math.round(quantity)), limit);
+    setSelectedIds((prev) => (prev[medicineId] == null || prev[medicineId] === next ? prev : { ...prev, [medicineId]: next }));
+  };
+
+  const setSelectionUnit = (medicine: MedicineData, unit: SaleUnit) => {
+    const medicineId = String(medicine.id);
+    setSelectedUnits((prev) => ({ ...prev, [medicineId]: unit }));
+    // A different unit is a different count: start again from one.
+    setSelectedIds((prev) => (prev[medicineId] == null ? prev : { ...prev, [medicineId]: 1 }));
   };
 
   const clearSelection = () => setSelectedIds({});
 
   const openOrderDialog = (
-    items: { medicine: MedicineData; quantity: number }[],
+    items: { medicine: MedicineData; quantity: number; saleUnit?: SaleUnit }[],
     type: "single" | "batch",
   ) => {
     setOrderItems(items);
@@ -297,16 +307,19 @@ export function MedicineCatalog({
     setOrderDialogOpen(true);
   };
 
-  const adjustOrderQuantity = (medicineId: string, delta: number) => {
+  const setOrderQuantity = (medicineId: string, quantity: number) => {
     setOrderItems((items) =>
       items.map((item) => {
         if (String(item.medicine.id) !== medicineId) return item;
-        const maxQuantity = Number(item.medicine.quantity);
-        return {
-          ...item,
-          quantity: Math.min(Math.max(1, item.quantity + delta), maxQuantity),
-        };
+        const limit = Math.max(1, maxQuantity(item.medicine, item.saleUnit ?? "pack"));
+        return { ...item, quantity: Math.min(Math.max(1, Math.round(quantity)), limit) };
       }),
+    );
+  };
+
+  const setOrderUnit = (medicineId: string, unit: SaleUnit) => {
+    setOrderItems((items) =>
+      items.map((item) => (String(item.medicine.id) === medicineId ? { ...item, saleUnit: unit, quantity: 1 } : item)),
     );
   };
 
@@ -318,7 +331,7 @@ export function MedicineCatalog({
       return;
     }
     const unavailableItem = orderItems.find(
-      ({ medicine, quantity }) => quantity > Number(medicine.quantity),
+      ({ medicine, quantity, saleUnit }) => quantity > maxQuantity(medicine, saleUnit ?? "pack"),
     );
     if (unavailableItem) return;
 
@@ -365,7 +378,7 @@ export function MedicineCatalog({
       showPriorityWarning(intent);
       return;
     }
-    openOrderDialog([{ medicine, quantity: 1 }], "single");
+    openOrderDialog([{ medicine, quantity: 1, saleUnit: "pack" }], "single");
   };
 
   const continueAfterPriorityWarning = () => {
@@ -426,8 +439,8 @@ export function MedicineCatalog({
     return { name: customerName, percentByName };
   })();
 
-  const discountedUnitPrice = (medicine: MedicineData) => {
-    const base = Number(medicine.price);
+  const discountedUnitPrice = (medicine: MedicineData, saleUnit: SaleUnit = "pack") => {
+    const base = unitPrice(medicine, saleUnit);
     const percent = selectedCustomer?.percentByName.get(medicine.name.trim().toLowerCase());
     if (!percent) return { unit: base, percent: 0 };
     const unit = Math.max(0.01, Math.round(base * (100 - percent)) / 100);
@@ -435,18 +448,26 @@ export function MedicineCatalog({
   };
 
   const orderTotal = orderItems.reduce(
-    (sum, { medicine, quantity }) => sum + quantity * discountedUnitPrice(medicine).unit,
+    (sum, { medicine, quantity, saleUnit }) => sum + quantity * discountedUnitPrice(medicine, saleUnit ?? "pack").unit,
     0,
   );
+  const orderListTotal = orderItems.reduce(
+    (sum, { medicine, quantity, saleUnit }) => sum + quantity * unitPrice(medicine, saleUnit ?? "pack"),
+    0,
+  );
+  const orderSavings = Math.max(0, orderListTotal - orderTotal);
   const hasInsufficientStock = orderItems.some(
-    ({ medicine, quantity }) => quantity > Number(medicine.quantity),
+    ({ medicine, quantity, saleUnit }) => quantity > maxQuantity(medicine, saleUnit ?? "pack"),
   );
 
   const renderMedicineCard = (medicine: MedicineData) => {
     const quantity = Number(medicine.quantity);
     const isSelected = selectedIds[medicine.id] != null;
     const selectedQuantity = selectedIds[medicine.id] ?? 1;
-    const lineTotal = selectedQuantity * Number(medicine.price);
+    const cardUnit: SaleUnit = selectedUnits[medicine.id] ?? "pack";
+    const splittable = isSplittable(medicine);
+    const cardMax = maxQuantity(medicine, cardUnit);
+    const lineTotal = selectedQuantity * unitPrice(medicine, cardUnit);
     const expired = isExpired(medicine, today);
     const laterExpiry = isLaterExpiryBatch(medicine);
     const preferredBatch = preferredBatchByName.get(medicineGroupKey(medicine));
@@ -463,8 +484,8 @@ export function MedicineCatalog({
       ? saleRule.kind === "needs_approval"
         ? "Manager approval · may take a moment"
         : saleRule.final != null
-          ? `Qty ${saleRule.threshold}–${saleRule.final} may need manager`
-          : `Qty ≥ ${saleRule.threshold} may need manager`
+          ? `Qty ${saleRule.threshold}–${saleRule.final}${saleRule.unit === "loose" ? ` ${plural(looseName(medicine), 2)}` : ""} may need manager`
+          : `Qty ≥ ${saleRule.threshold}${saleRule.unit === "loose" ? ` ${plural(looseName(medicine), 2)}` : ""} may need manager`
       : null;
 
     return (
@@ -505,8 +526,8 @@ export function MedicineCatalog({
                 {categoryLabel(medicine.category)}
               </span>
             </div>
-            <Badge variant={getStockTone(quantity)} className="shrink-0">
-              {quantity} left
+            <Badge variant={getStockTone(quantity)} className="shrink-0 whitespace-normal text-right leading-tight">
+              {splittable ? stockText(medicine) : `${quantity} left`}
             </Badge>
           </div>
 
@@ -551,8 +572,18 @@ export function MedicineCatalog({
           </div>
 
           <div className="flex items-baseline justify-between gap-2 pt-1">
-            <span className="font-display text-lg font-semibold text-apex-orange-light">
-              {formatCurrency(medicine.price)}
+            <span className="flex flex-col leading-tight">
+              <span className="font-display text-lg font-semibold text-apex-orange-light">
+                {formatCurrency(medicine.price)}
+                {splittable ? <span className="ml-1 text-[0.65rem] font-medium text-white/45">/ {packName(medicine)}</span> : null}
+              </span>
+              {splittable ? (
+                <span className="inline-flex items-center gap-1 text-[0.7rem] font-semibold text-fuchsia-200/90">
+                  <Scissors className="size-3" />
+                  {formatCurrency(unitPrice(medicine, "loose"))} / {looseName(medicine)}
+                  <span className="font-normal text-white/40">· {medicine.pack_size} per {packName(medicine)}</span>
+                </span>
+              ) : null}
             </span>
             {isSelected ? (
               <span className="text-xs font-semibold tabular-nums text-apex-orange-light/90">
@@ -561,36 +592,20 @@ export function MedicineCatalog({
             ) : null}
           </div>
 
+          {isSelected && splittable ? (
+            <SaleUnitToggle medicine={medicine} value={cardUnit} onChange={(unit) => setSelectionUnit(medicine, unit)} compact />
+          ) : null}
+
           {isSelected ? (
             <div className="flex items-center justify-between rounded-xl border border-apex-orange/15 bg-apex-orange/6 px-2 py-1.5">
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  className="border-white/10 bg-white/4 text-white/80 hover:bg-white/10 hover:text-white"
-                  aria-label={`Decrease ${medicine.name} batch quantity`}
-                  disabled={selectedQuantity <= 1}
-                  onClick={() => updateSelectionQuantity(medicine, -1)}
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </Button>
-                <span className="w-8 text-center text-sm font-semibold tabular-nums text-white">
-                  {selectedQuantity}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  className="border-white/10 bg-white/4 text-white/80 hover:bg-white/10 hover:text-white"
-                  aria-label={`Increase ${medicine.name} batch quantity`}
-                  disabled={selectedQuantity >= quantity}
-                  onClick={() => updateSelectionQuantity(medicine, 1)}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <span className="text-xs font-medium text-white/55">in batch</span>
+              <QuantityStepper
+                size="sm"
+                label={`${medicine.name} batch`}
+                value={selectedQuantity}
+                max={cardMax}
+                onChange={(n) => setSelectionQuantity(medicine, n)}
+              />
+              <span className="text-xs font-medium text-white/55">{splittable ? unitWord(medicine, cardUnit, selectedQuantity) : "in batch"}</span>
             </div>
           ) : null}
         </CardContent>
@@ -655,7 +670,7 @@ export function MedicineCatalog({
               Medicine catalog
             </CardTitle>
             <CardDescription className="max-w-2xl leading-relaxed text-white/60">
-              Search and filter the catalog, then order one medicine or select several for a batch.
+              Search and filter, then order one medicine or batch several.
             </CardDescription>
           </div>
         </div>
@@ -863,7 +878,7 @@ export function MedicineCatalog({
         }}
       >
         <DialogContent
-          className="max-h-[85vh] overflow-y-auto sm:max-w-lg"
+          className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-xl"
           onEscapeKeyDown={(event) => {
             if (loading) event.preventDefault();
           }}
@@ -871,19 +886,27 @@ export function MedicineCatalog({
             if (loading) event.preventDefault();
           }}
         >
-          <DialogHeader>
-            <DialogTitle>
-              {orderType === "batch" ? "Confirm batch order" : "Confirm order"}
-            </DialogTitle>
-            <DialogDescription>
-              Review the medicine, quantity, and total before recording this sale.
-            </DialogDescription>
+          <DialogHeader className="border-b border-white/10 bg-[linear-gradient(100deg,rgba(168,85,247,0.22),rgba(236,72,153,0.1)_55%,transparent)] px-6 py-5 pr-14 text-left">
+            <div className="flex items-center gap-3.5">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-fuchsia-300/35 bg-fuchsia-400/15 text-fuchsia-100 shadow-[0_10px_26px_-14px_rgba(217,70,239,0.9)]">
+                {orderType === "batch" ? <ShoppingBag className="size-6" /> : <ReceiptText className="size-6" />}
+              </span>
+              <div className="min-w-0">
+                <DialogTitle className="font-display text-xl font-bold text-white">
+                  {orderType === "batch" ? "Confirm batch order" : "Confirm order"}
+                </DialogTitle>
+                <DialogDescription className="mt-0.5 text-sm text-white/60">
+                  {orderItems.length} item{orderItems.length === 1 ? "" : "s"} · check quantities, then record the sale
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/4 p-3">
-              <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-white/50">
-                Customer discount (optional)
+          <div className="space-y-4 px-6 py-5">
+            <div className="rounded-2xl border border-cyan-300/25 bg-[linear-gradient(135deg,rgba(34,211,238,0.1),rgba(168,85,247,0.06))] p-3.5">
+              <p className="mb-2 flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-cyan-200">
+                <Percent className="size-3.5" />
+                Customer discount · optional
               </p>
               <Combobox
                 value={customerKey}
@@ -895,109 +918,135 @@ export function MedicineCatalog({
                 disabled={loading}
               />
               {selectedCustomer ? (
-                <p className="text-xs text-white/50">
-                  Discounted items are priced below the sales price; other items stay at full price.
-                </p>
+                <p className="mt-2 text-xs text-cyan-100/70">Discounted items show their lower price below.</p>
               ) : null}
             </div>
 
-            {orderItems.map(({ medicine, quantity }) => {
-              const { unit, percent } = discountedUnitPrice(medicine);
-              return (
-              <div
-                key={medicine.id}
-                className="flex items-start justify-between gap-4 rounded-xl border border-white/10 bg-white/4 p-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-white/90">{medicine.name}</p>
-                      <p className="mt-1 truncate text-xs text-white/50">
-                        Batch {medicine.batch_number || "—"}
-                        {medicine.expiry_date
-                          ? ` · Expires ${format(parseISO(medicine.expiry_date), "MMM d, yyyy")}`
-                          : " · No expiry date"}
+            <div className="space-y-3">
+              {orderItems.map(({ medicine, quantity, saleUnit = "pack" }) => {
+                const { unit, percent } = discountedUnitPrice(medicine, saleUnit);
+                const limit = maxQuantity(medicine, saleUnit);
+                const splittable = isSplittable(medicine);
+                const fullPrice = unitPrice(medicine, saleUnit);
+                const over = quantity > limit;
+                return (
+                  <div
+                    key={medicine.id}
+                    className={cn(
+                      "rounded-2xl border bg-[linear-gradient(145deg,rgba(255,255,255,0.05),rgba(6,5,26,0.5))] p-3.5",
+                      over ? "border-red-400/45" : "border-white/12",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-white/12 bg-[radial-gradient(ellipse_at_50%_35%,rgba(168,85,247,0.2),transparent_60%),#0c0a2a]">
+                        {medicine.image_url ? (
+                          <Image src={medicine.image_url} alt={medicine.name} fill sizes="56px" className="object-cover" />
+                        ) : (
+                          <span className="absolute inset-0 flex items-center justify-center text-apex-orange-light/70">
+                            <Package className="size-6" />
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-display text-base font-bold text-white">{medicine.name}</p>
+                            <p className="mt-0.5 truncate text-xs text-white/50">
+                              Batch {medicine.batch_number || "—"}
+                              {medicine.expiry_date ? ` · Exp ${format(parseISO(medicine.expiry_date), "MMM d, yyyy")}` : ""}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            {percent ? (
+                              <p className="text-[0.7rem] tabular-nums text-white/40 line-through">{formatCurrency(quantity * fullPrice)}</p>
+                            ) : null}
+                            <p className="font-display text-lg font-bold tabular-nums text-apex-orange-light">
+                              {formatCurrency(quantity * unit)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 border-t border-white/8 pt-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        {splittable ? (
+                          <SaleUnitToggle medicine={medicine} value={saleUnit} disabled={loading} onChange={(u) => setOrderUnit(String(medicine.id), u)} />
+                        ) : null}
+                        <QuantityStepper
+                          label={medicine.name}
+                          value={quantity}
+                          max={limit}
+                          disabled={loading}
+                          onChange={(n) => setOrderQuantity(String(medicine.id), n)}
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center justify-end gap-1.5 text-[0.7rem]">
+                        <span className="rounded-full border border-white/12 bg-white/6 px-2 py-0.5 tabular-nums text-white/70">
+                          {formatCurrency(unit)} / {splittable && saleUnit === "loose" ? looseName(medicine) : packName(medicine)}
+                        </span>
+                        <span className="rounded-full border border-white/12 bg-white/6 px-2 py-0.5 tabular-nums text-white/60">
+                          {limit} available
+                        </span>
+                        {percent ? (
+                          <span className="rounded-full border border-emerald-400/35 bg-emerald-400/12 px-2 py-0.5 font-bold text-emerald-200">
+                            {percent}% off
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {over ? (
+                      <p className="mt-2.5 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200">
+                        Only {limit} {unitWord(medicine, saleUnit, limit)} in stock.
                       </p>
-                      <div className="mt-2 flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      className="border-white/12 bg-white/5"
-                      aria-label={`Decrease ${medicine.name} quantity`}
-                      disabled={loading || quantity <= 1}
-                      onClick={() => adjustOrderQuantity(String(medicine.id), -1)}
-                    >
-                      <Minus className="h-3.5 w-3.5" />
-                    </Button>
-                    <span className="min-w-8 text-center text-sm font-semibold tabular-nums text-white">
-                      {quantity}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      className="border-white/12 bg-white/5"
-                      aria-label={`Increase ${medicine.name} quantity`}
-                      disabled={loading || quantity >= Number(medicine.quantity)}
-                      onClick={() => adjustOrderQuantity(String(medicine.id), 1)}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
-                    <span className="text-xs text-white/45">
-                      {quantity} × {formatCurrency(unit)} · {medicine.quantity} available
-                    </span>
-                    {percent ? (
-                      <Badge className="border-emerald-400/30 bg-emerald-400/10 text-[10px] text-emerald-200">
-                        {percent}% off
-                      </Badge>
+                    ) : splittable && saleUnit === "loose" && quantity > Number(medicine.loose_stock || 0) ? (
+                      <p className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-fuchsia-300/20 bg-fuchsia-400/8 px-3 py-1.5 text-xs text-fuchsia-100/85">
+                        <Scissors className="size-3.5 shrink-0" />
+                        {Number(medicine.loose_stock || 0) > 0
+                          ? `Uses the ${medicine.loose_stock} left in the opened ${packName(medicine)}, then opens a new one.`
+                          : `Opens a new ${packName(medicine)}.`}
+                      </p>
                     ) : null}
                   </div>
-                  {quantity > Number(medicine.quantity) ? (
-                    <p className="mt-1 text-sm font-medium text-red-300">
-                      Only {medicine.quantity} in stock.
-                    </p>
-                  ) : null}
-                </div>
-                <div className="shrink-0 text-right">
-                  {percent ? (
-                    <p className="text-xs tabular-nums text-white/40 line-through">
-                      {formatCurrency(quantity * Number(medicine.price))}
-                    </p>
-                  ) : null}
-                  <p className="font-semibold tabular-nums text-apex-orange-light">
-                    {formatCurrency(quantity * unit)}
-                  </p>
-                </div>
-              </div>
-              );
-            })}
+                );
+              })}
+            </div>
 
-            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
-              <p className="text-sm text-white/55">Total</p>
-              <p className="font-display text-xl font-semibold tabular-nums text-apex-orange-light">
-                {formatCurrency(orderTotal)}
-              </p>
+            <div className="overflow-hidden rounded-2xl border border-fuchsia-300/30 bg-[linear-gradient(135deg,rgba(168,85,247,0.2),rgba(236,72,153,0.1)_60%,rgba(10,8,40,0.6))]">
+              {orderSavings > 0.004 ? (
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5 text-sm">
+                  <span className="text-white/65">Subtotal</span>
+                  <span className="tabular-nums text-white/55 line-through">{formatCurrency(orderListTotal)}</span>
+                </div>
+              ) : null}
+              {orderSavings > 0.004 ? (
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5 text-sm">
+                  <span className="flex items-center gap-1.5 text-emerald-200">
+                    <Percent className="size-3.5" />
+                    Customer discount
+                  </span>
+                  <span className="font-semibold tabular-nums text-emerald-200">− {formatCurrency(orderSavings)}</span>
+                </div>
+              ) : null}
+              <div className="flex items-center justify-between px-4 py-3.5">
+                <span className="text-sm font-semibold uppercase tracking-[0.14em] text-white/70">Total</span>
+                <span className="font-display text-3xl font-bold tabular-nums text-white">{formatCurrency(orderTotal)}</span>
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={loading}
-              onClick={() => setOrderDialogOpen(false)}
-            >
+          <DialogFooter className="gap-2 border-t border-white/10 bg-[#07061f]/60 px-6 py-4 sm:justify-end">
+            <Button type="button" variant="outline" disabled={loading} onClick={() => setOrderDialogOpen(false)}>
               Cancel
             </Button>
             <Button
               type="button"
+              className="min-w-44 bg-[linear-gradient(120deg,#7439e0,#b82bd0_52%,#ea4466)] text-white shadow-[0_12px_28px_-14px_rgba(184,43,208,0.8)] hover:brightness-110"
               disabled={loading || !orderItems.length || hasInsufficientStock}
               onClick={() => void handleConfirmOrder()}
             >
-              {loading
-                ? "Recording…"
-                : orderType === "batch"
-                  ? "Confirm batch order"
-                  : "Confirm order"}
+              {loading ? "Recording…" : orderType === "batch" ? "Confirm batch order" : "Confirm order"}
             </Button>
           </DialogFooter>
         </DialogContent>

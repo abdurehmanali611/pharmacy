@@ -12,6 +12,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
+import { MEDICINE_UNITS, unitLabel } from "@/lib/medicineUnits";
+import { PackSellingPanel } from "@/components/manager/PackSellingPanel";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DRUG_CATEGORIES } from "@/constants";
 import { createBatchMedicines, type addMedicine, type SupplierData } from "@/lib/actions";
@@ -27,6 +29,11 @@ type MedicineLine = {
   price: string;
   cost: string;
   quantity: string;
+  unit: string;
+  split: boolean;
+  pack_size: string;
+  loose_unit: string;
+  loose_price: string;
   paid_amount: string;
   paid_touched: boolean;
   batch_number: string;
@@ -43,6 +50,11 @@ const createEmptyLine = (): MedicineLine => ({
   price: "",
   cost: "",
   quantity: "",
+  unit: "piece",
+  split: false,
+  pack_size: "",
+  loose_unit: "tablet",
+  loose_price: "",
   paid_amount: "",
   paid_touched: false,
   batch_number: "",
@@ -67,6 +79,10 @@ export function BatchMedicineDialog({
 
   const removeLine = (id: string) => {
     setLines((prev) => (prev.length > 1 ? prev.filter((line) => line.id !== id) : prev));
+  };
+
+  const patchLine = (id: string, patch: Partial<MedicineLine>) => {
+    setLines((prev) => prev.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   };
 
   const updateLine = (id: string, field: keyof MedicineLine, value: string) => {
@@ -117,6 +133,10 @@ export function BatchMedicineDialog({
         toast.error(`Line #${i + 1} (${line.name}): Batch number is required`);
         return;
       }
+      if (line.split && !(Math.floor(Number(line.pack_size)) >= 2)) {
+        toast.error(`Line #${i + 1} (${line.name}): Enter how many loose units one pack holds (2 or more)`);
+        return;
+      }
       if (linePaid(line) < 0 || linePaid(line) - lineTotal(line) > 0.005) {
         toast.error(`Line #${i + 1} (${line.name}): Paid amount cannot be more than the total cost`);
         return;
@@ -130,6 +150,10 @@ export function BatchMedicineDialog({
       price: Number(line.price),
       cost: Number(line.cost) || 0,
       quantity: Number(line.quantity),
+      unit: line.unit || "piece",
+      pack_size: line.split ? Math.floor(Number(line.pack_size)) : 1,
+      loose_unit: line.split ? line.loose_unit || "tablet" : "",
+      loose_price: line.split && line.loose_price !== "" ? Number(line.loose_price) : null,
       paid_amount: Math.round(linePaid(line) * 100) / 100,
       batch_number: line.batch_number.trim(),
       expiry_date: line.expiry_date || null,
@@ -155,7 +179,7 @@ export function BatchMedicineDialog({
             </span>
             <div>
               <h2 className="font-display text-xl font-bold">Medicine intake</h2>
-              <p className="text-sm text-white/60">Register multiple stock records with individual supplier, pricing, batch and expiry details.</p>
+              <p className="text-sm text-white/60">Register several stock lines at once.</p>
             </div>
           </div>
         </header>
@@ -239,14 +263,24 @@ export function BatchMedicineDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-white/70">Quantity</label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={line.quantity}
-                      onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                      className="h-10 border-white/10 bg-white/4 text-sm"
-                    />
+                    <label className="text-[11px] font-semibold text-white/70">Quantity &amp; Unit</label>
+                    <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-2">
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={line.quantity}
+                        onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
+                        className="h-10 border-white/10 bg-white/4 text-sm"
+                      />
+                      <Combobox
+                        value={line.unit}
+                        onChange={(val) => updateLine(line.id, "unit", val)}
+                        options={MEDICINE_UNITS.map((u) => ({ label: u.label, value: u.value }))}
+                        placeholder="Unit"
+                        searchPlaceholder="Search units..."
+                        className="h-10 border-white/10 bg-white/4 text-sm"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1">
@@ -315,6 +349,29 @@ export function BatchMedicineDialog({
                       )
                     ) : null}
                   </div>
+                </div>
+
+                <div className="mt-3">
+                  <PackSellingPanel
+                    enabled={line.split}
+                    onEnabledChange={(on) =>
+                      patchLine(line.id, {
+                        split: on,
+                        pack_size: on && !line.pack_size ? "10" : line.pack_size,
+                        loose_unit: line.loose_unit || "tablet",
+                      })
+                    }
+                    packSize={line.pack_size}
+                    onPackSizeChange={(v) => patchLine(line.id, { pack_size: v })}
+                    looseUnit={line.loose_unit}
+                    onLooseUnitChange={(v) => patchLine(line.id, { loose_unit: v })}
+                    loosePrice={line.loose_price}
+                    onLoosePriceChange={(v) => patchLine(line.id, { loose_price: v })}
+                    packLabel={unitLabel(line.unit).toLowerCase()}
+                    salePrice={Number(line.price) || 0}
+                    cost={Number(line.cost) || 0}
+                    disabled={submitting}
+                  />
                 </div>
 
                 <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.8fr)]">

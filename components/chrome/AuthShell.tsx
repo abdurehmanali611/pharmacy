@@ -129,8 +129,7 @@ export function AuthShell({
             .
           </p>
           <p className="auth-rise auth-delay-2 text-sm leading-relaxed text-white/80">
-            Inventory, suppliers, invoices, cashouts, and multi-medicine selling
-            — one precise workspace engineered for the counter, not a demo.
+            Inventory, suppliers, invoices, cashouts and selling — one focused workspace for the counter.
           </p>
           <div className="auth-rise auth-delay-3 flex flex-wrap gap-2">
             {["Inventory", "Sales", "Suppliers", "Finance"].map((label, i) => (

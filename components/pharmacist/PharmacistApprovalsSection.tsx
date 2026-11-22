@@ -182,7 +182,7 @@ export function PharmacistApprovalsSection({
         <WorkspaceModuleHeader
           kicker="Pharmacist · Approvals"
           title="Sale approvals"
-          description="Expand a held sale to track manager review, confirm changes, or dismiss a rejection."
+          description="Expand a held sale to follow its review, confirm changes or dismiss."
         />
         <div className="grid gap-3 p-5 sm:grid-cols-3 sm:p-6">
           <WorkspaceStat
@@ -257,8 +257,7 @@ export function PharmacistApprovalsSection({
                     <CollapsibleContent className="border-t border-white/10 px-4 pb-4 pt-3">
                       {sale.status === "awaiting_manager" ? (
                         <p className="mb-3 rounded-lg border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-sm text-sky-50">
-                          Pending manager approval. Tell the customer this sale may take a moment
-                          while the manager reviews it. Refresh after they respond.
+                          Awaiting manager approval — this may take a moment. Refresh after they respond.
                         </p>
                       ) : sale.status === "rejected" ? (
                         <p className="mb-3 rounded-lg border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-100">
@@ -267,8 +266,7 @@ export function PharmacistApprovalsSection({
                         </p>
                       ) : (
                         <p className="mb-3 text-sm text-white/60">
-                          Confirm quantities inside the bands the manager set. Accept settles the
-                          sale; reject cancels it for this customer.
+                          Confirm quantities within the manager's bands. Accept completes the sale; reject cancels it.
                         </p>
                       )}
 
@@ -287,7 +285,7 @@ export function PharmacistApprovalsSection({
                                 <div>
                                   <p className="font-medium text-white">{line.medicine_name}</p>
                                   <p className="text-xs text-white/55">
-                                    Original qty {line.original_quantity} ·{" "}
+                                    Original qty {line.original_quantity}{line.sale_unit === "loose" && line.unit_name ? ` ${line.unit_name}` : ""} ·{" "}
                                     {formatCurrency(line.effective_price)} / unit
                                     {line.qty_threshold != null
                                       ? ` · Band ${bandLabel(line.qty_threshold, line.qty_final)}`

@@ -95,6 +95,9 @@ export type MovementRow = {
   inStock: number;
 };
 
+const soldPacksOf = (p: { quantity: number | string; pack_quantity?: number | string | null }) =>
+  p.pack_quantity != null && p.pack_quantity !== "" ? toNumber(p.pack_quantity) : toNumber(p.quantity);
+
 /** Per-batch movement: what arrived, what sold, what was lost, what is left. */
 export function buildMovement(
   medicines: MedicineData[],
@@ -105,7 +108,8 @@ export function buildMovement(
   for (const p of purchases) {
     if (p.medicine_id == null) continue;
     const key = String(p.medicine_id);
-    sold.set(key, (sold.get(key) ?? 0) + toNumber(p.quantity));
+    // Loose sales count as a fraction of a pack, so every figure here is in whole packs.
+    sold.set(key, Math.round(((sold.get(key) ?? 0) + soldPacksOf(p)) * 10000) / 10000);
   }
   const lost = new Map<string, number>();
   for (const l of losses) {
@@ -118,6 +122,6 @@ export function buildMovement(
     received: receivedQuantity(medicine),
     sold: sold.get(String(medicine.id)) ?? 0,
     lost: lost.get(String(medicine.id)) ?? 0,
-    inStock: toNumber(medicine.quantity),
+    inStock: toNumber(medicine.quantity) + (toNumber(medicine.loose_stock) > 0 ? Math.round((toNumber(medicine.loose_stock) / Math.max(1, toNumber(medicine.pack_size))) * 10000) / 10000 : 0),
   }));
 }

@@ -278,7 +278,7 @@ export function PendingApprovalsSection({
         <WorkspaceModuleHeader
           kicker="Manager · Queue"
           title="Pending approvals"
-          description="Held pharmacist sales wait here. Expand a sale to approve as-is, adjust that-sale prices, attach items, or reject with a reason."
+          description="Held sales wait here. Expand one to approve, adjust prices, attach items or reject."
         />
 
         {!awaiting.length ? (
@@ -336,8 +336,7 @@ export function PendingApprovalsSection({
 
                     <CollapsibleContent className="border-t border-white/10 px-4 pb-4 pt-3">
                       <p className="mb-3 text-sm text-white/60">
-                        Prices changed here apply only to this sale. Inventory stays untouched until
-                        the pharmacist accepts.
+                        Price changes apply to this sale only. Stock changes after the pharmacist accepts.
                       </p>
 
                       <div className="space-y-3">
@@ -356,8 +355,8 @@ export function PendingApprovalsSection({
                                 <div>
                                   <p className="font-medium text-white">{line.medicine_name}</p>
                                   <p className="text-xs text-white/55">
-                                    Requested qty {line.original_quantity} ·{" "}
-                                    {formatCurrency(line.original_price)} / unit
+                                    Requested qty {line.original_quantity}{line.sale_unit === "loose" && line.unit_name ? ` ${line.unit_name}` : ""} ·{" "}
+                                    {formatCurrency(line.original_price)} / {line.sale_unit === "loose" && line.unit_name ? line.unit_name : "unit"}
                                     {line.trigger !== "none"
                                       ? ` · ${line.trigger.replace("_", " ")}`
                                       : ""}
@@ -499,8 +498,7 @@ export function PendingApprovalsSection({
                                         </p>
                                       ) : isRule2 ? (
                                         <p className="pb-2 text-xs text-amber-100/85">
-                                          Rule 2 item · free to customize here (threshold, final,
-                                          unit price)
+                                          Needs-approval item · set threshold, final and price freely
                                         </p>
                                       ) : null}
                                       <Button

@@ -49,6 +49,7 @@ import type { PendingSaleData, PurchaseData, UserData } from "@/lib/actions";
 import { formatCurrency } from "@/lib/format";
 import { toNumber } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
+import { soldPacks, trimNumber } from "@/lib/packSelling";
 
 type AgentStats = {
   key: string;
@@ -191,7 +192,7 @@ export function SalesAgentReportsSection({
         const d = new Date(p.created_at);
         const dayKey = format(d, "yyyy-MM-dd");
         days.set(dayKey, (days.get(dayKey) ?? 0) + toNumber(p.total_price));
-        meds.set(p.medicine_name, (meds.get(p.medicine_name) ?? 0) + toNumber(p.quantity));
+        meds.set(p.medicine_name, Math.round(((meds.get(p.medicine_name) ?? 0) + soldPacks(p)) * 100) / 100);
         hours[d.getHours()] += 1;
       }
       const bestDayEntry = [...days.entries()].sort((a, b) => b[1] - a[1])[0];
@@ -206,7 +207,7 @@ export function SalesAgentReportsSection({
         removed: info.removed,
         lines: mine.length,
         receipts,
-        units: mine.reduce((s, p) => s + toNumber(p.quantity), 0),
+        units: Math.round(mine.reduce((s, p) => s + soldPacks(p), 0) * 100) / 100,
         revenue,
         profit: mine.reduce((s, p) => s + toNumber(p.profit), 0),
         avgReceipt: receipts ? revenue / receipts : 0,
@@ -308,7 +309,7 @@ export function SalesAgentReportsSection({
       <WorkspacePanel>
         <WorkspaceSectionHeader
           title="Sales agent performance"
-          description="Activity, sales and side-by-side comparison of every sales agent."
+          description="Sales, activity and comparison for every agent."
           action={
             <ExportMenu
               build={() => {
@@ -421,7 +422,7 @@ export function SalesAgentReportsSection({
 
       {agents.length === 0 ? (
         <WorkspacePanel className="p-6">
-          <EmptyState icon={Users} tint="violet" title="No sales agents yet" description="Create sales agents in the Team section to start tracking their sales." />
+          <EmptyState icon={Users} tint="violet" title="No sales agents yet" description="Create agents in Team to start tracking sales." />
         </WorkspacePanel>
       ) : (
         <>
@@ -479,7 +480,7 @@ export function SalesAgentReportsSection({
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <EmptyState icon={Users} tint="violet" title="Need two selling agents" description="The radar compares agents once at least two have sales in this period." />
+                <EmptyState icon={Users} tint="violet" title="Need two selling agents" description="Needs two agents with sales in this period." />
               )}
             </WorkspacePanel>
 
@@ -644,7 +645,7 @@ export function SalesAgentReportsSection({
                         </div>
                       </TableCell>
                       <TableCell className="tabular-nums text-white/85">{a.receipts}</TableCell>
-                      <TableCell className="tabular-nums text-white/85">{a.units}</TableCell>
+                      <TableCell className="tabular-nums text-white/85">{trimNumber(a.units)}</TableCell>
                       <TableCell>
                         <div className="w-32 space-y-1">
                           <p className="font-bold tabular-nums text-white">{formatCurrency(a.revenue)}</p>
@@ -708,7 +709,7 @@ export function SalesAgentReportsSection({
                     {[
                       ["Revenue", formatCurrency(a.revenue)],
                       ["Profit", formatCurrency(a.profit)],
-                      ["Units", String(a.units)],
+                      ["Units", trimNumber(a.units)],
                       ["Avg sale", formatCurrency(a.avgReceipt)],
                     ].map(([label, value]) => (
                       <div key={label} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
@@ -775,7 +776,7 @@ export function SalesAgentReportsSection({
                         <TableCell className="whitespace-nowrap text-white/70">{format(new Date(p.created_at), "PP p")}</TableCell>
                         <TableCell className="font-semibold text-white">{agentName(p)}</TableCell>
                         <TableCell className="text-white/85">{p.medicine_name}</TableCell>
-                        <TableCell className="tabular-nums text-white/85">{p.quantity}</TableCell>
+                        <TableCell className="tabular-nums text-white/85">{p.quantity}{p.sale_unit === "loose" && p.unit_name ? <span className="ml-1 text-xs text-fuchsia-200/80">{p.unit_name}</span> : null}</TableCell>
                         <TableCell className="tabular-nums text-white/85">{formatCurrency(toNumber(p.price))}</TableCell>
                         <TableCell className="text-white/70">{p.customer_name || "—"}</TableCell>
                         <TableCell className="font-bold tabular-nums text-white">{formatCurrency(toNumber(p.total_price))}</TableCell>

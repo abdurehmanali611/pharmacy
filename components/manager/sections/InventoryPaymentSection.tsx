@@ -344,7 +344,7 @@ function LineDetail({
                   {myPurchases.slice(0, 20).map((p) => (
                     <div key={p.id} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs">
                       <span className="text-white/70">{format(new Date(p.created_at), "PP p")}</span>
-                      <span className="tabular-nums text-white/85">{p.quantity} × {formatCurrency(toNumber(p.price))}</span>
+                      <span className="tabular-nums text-white/85">{p.quantity}{p.sale_unit === "loose" && p.unit_name ? ` ${p.unit_name}` : ""} × {formatCurrency(toNumber(p.price))}</span>
                       <span className="font-bold tabular-nums text-fuchsia-100">{formatCurrency(toNumber(p.total_price))}</span>
                     </div>
                   ))}

@@ -91,7 +91,7 @@ export function BatchSupplierDialog({
             <div>
               <h2 className="font-display text-xl font-bold">Supplier intake</h2>
               <p className="text-sm text-white/60">
-                Register multiple suppliers and distributors simultaneously using Add Line.
+                Register several suppliers at once.
               </p>
             </div>
           </div>

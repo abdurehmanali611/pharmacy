@@ -474,7 +474,7 @@ export function DiscountRulesSection({
         <WorkspaceModuleHeader
           kicker="Manager · Controls"
           title="Discount rules"
-          description="Give named customers a percentage off selected items. Pharmacists pick the customer when recording a sale, and the discount comes off the sales price."
+          description="Give named customers a percentage off chosen items, applied at the counter."
         />
       </section>
 
@@ -487,7 +487,7 @@ export function DiscountRulesSection({
             <div>
               <h3 className="font-display text-xl font-bold text-white">New discount rules</h3>
               <p className="mt-0.5 max-w-2xl text-sm text-white/65">
-                One line per customer and item set. A customer can have several lines; if an item is on more than one, the higher percentage applies.
+                One line per customer and item set. Overlaps use the higher percentage.
               </p>
             </div>
           </div>
@@ -609,7 +609,7 @@ export function DiscountRulesSection({
             </span>
             <p className="font-display text-lg font-bold text-white">No discount rules yet</p>
             <p className="max-w-sm text-sm text-white/65">
-              Add a customer, pick the items and set a percentage above. They will show up here, ready to edit or remove.
+              Add a customer above and the rules will appear here.
             </p>
           </div>
         ) : filteredRules.length === 0 ? (

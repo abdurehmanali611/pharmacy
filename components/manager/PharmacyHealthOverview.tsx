@@ -34,6 +34,7 @@ import type { MedicineData, PurchaseData } from "@/lib/actions";
 import { formatCurrency } from "@/lib/format";
 import { creditDue, daysToExpiry, stockCostValue, toNumber } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
+import { soldPacks, trimNumber } from "@/lib/packSelling";
 
 export type HealthPeriod = {
   /** True for a single day: the chart then shows hours instead of days. */
@@ -107,7 +108,7 @@ export function PharmacyHealthOverview({
       if (!bucket) continue;
       bucket.revenue += toNumber(p.total_price);
       bucket.profit += toNumber(p.profit);
-      bucket.units += toNumber(p.quantity);
+      bucket.units += soldPacks(p);
       bucket.sales += 1;
     }
     const series = days.map((d) => {
@@ -273,7 +274,7 @@ export function PharmacyHealthOverview({
         {[
           ["Revenue", formatCurrency(model.totals.revenue), model.wow.revenue, "tint-violet"],
           ["Profit", formatCurrency(model.totals.profit), model.wow.profit, "tint-emerald"],
-          ["Units sold", model.totals.units.toLocaleString(), model.wow.units, "tint-cyan"],
+          ["Units sold", trimNumber(model.totals.units), model.wow.units, "tint-cyan"],
           ["Sale lines", model.totals.sales.toLocaleString(), model.wow.sales, "tint-pink"],
         ].map(([label, value, delta, tint]) => (
           <div key={label as string} className={cn("workspace-inner-surface p-4", tint as string)}>

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/chrome/AppShell";
 import type { HeaderStat } from "@/components/chrome/AppShell";
 import type { AppNotification } from "@/components/chrome/HeaderActions";
+import { hasStock, soldPacks, trimNumber, unitPrice, type SaleUnit } from "@/lib/packSelling";
 import { MedicineCatalog } from "@/components/pharmacist/MedicineCatalog";
 import { PharmacistApprovalsSection } from "@/components/pharmacist/PharmacistApprovalsSection";
 import { getPharmacistPageMeta, PHARMACIST_NAV, type PharmacistSectionKey } from "@/components/pharmacist/navigation";
@@ -95,7 +96,7 @@ export default function PharmacistView() {
   }, [filteredSales]);
 
   const inventorySummary = useMemo(() => ({
-    medicineCount: medicines.filter((item) => Number(item.quantity) > 0).length,
+    medicineCount: medicines.filter((item) => hasStock(item)).length,
     totalUnits: medicines.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
     lowStockCount: medicines.filter((item) => Number(item.quantity) > 0 && Number(item.quantity) <= 5).length,
   }), [medicines]);
@@ -129,6 +130,7 @@ export default function PharmacistView() {
           kind: "quantity_band",
           threshold: rule.threshold,
           final: rule.final,
+          unit: rule.unit ?? "pack",
         };
       }
       for (const item of approvalRequired ?? []) {
@@ -148,18 +150,19 @@ export default function PharmacistView() {
   }, []);
 
   const handleSubmitOrder = async (
-    entries: { medicine: MedicineData; quantity: number }[],
+    entries: { medicine: MedicineData; quantity: number; saleUnit?: SaleUnit }[],
     customerName?: string,
   ) => {
     const result = await CreateBulkPurchase(
       {
         ...(customerName ? { customer_name: customerName } : {}),
-        items: entries.map(({ medicine, quantity }) => ({
+        items: entries.map(({ medicine, quantity, saleUnit = "pack" }) => ({
           medicine_id: Number(medicine.id),
           medicine_name: medicine.name,
           quantity: Number(quantity),
-          price: Number(medicine.price),
-          total_price: Number(quantity) * Number(medicine.price),
+          sale_unit: saleUnit,
+          price: unitPrice(medicine, saleUnit),
+          total_price: Number(quantity) * unitPrice(medicine, saleUnit),
         })),
       },
       setLoading,
@@ -190,10 +193,10 @@ export default function PharmacistView() {
         (!myId || p.sold_by_id == null || String(p.sold_by_id) === myId),
     );
     const revenue = mine.reduce((s, p) => s + Number(p.total_price), 0);
-    const units = mine.reduce((s, p) => s + Number(p.quantity), 0);
+    const units = mine.reduce((s, p) => s + soldPacks(p), 0);
     return [
       { label: "Your sales today", value: formatCurrency(revenue), icon: BadgeDollarSign, tint: "violet" },
-      { label: "Units sold", value: units.toLocaleString(), icon: Package, tint: "cyan" },
+      { label: "Units sold", value: trimNumber(units), icon: Package, tint: "cyan" },
       { label: "Sale lines", value: String(mine.length), icon: ReceiptText, tint: "pink" },
     ];
   })();
@@ -254,7 +257,7 @@ export default function PharmacistView() {
                       A clear view of your counter
                     </h2>
                     <p className="max-w-2xl text-sm leading-relaxed text-white/60">
-                      Find a medicine, check its stock, and place a single or batch order with confidence.
+                      Find a medicine, check its stock and place an order.
                     </p>
                   </div>
                 </div>

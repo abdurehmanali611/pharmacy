@@ -391,7 +391,7 @@ export function InvoiceManagementSection({
               icon={Receipt}
               tint="sky"
               title="Invoice records"
-              subtitle={`Showing ${filteredInvoices.length} of ${invoices.length} · supplier and sales invoices with payment status at a glance`}
+              subtitle={`Showing ${filteredInvoices.length} of ${invoices.length} · supplier and sales invoices`}
               right={
                 <ExportMenu
                   build={() => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { soldPacks, trimNumber } from "@/lib/packSelling";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseISO } from "date-fns";
 import { AlertTriangle, BadgeDollarSign, ClipboardCheck, HandCoins, Hourglass, Package, TimerOff, TrendingUp } from "lucide-react";
@@ -113,6 +114,10 @@ export default function ManagerView() {
       price: 0,
       cost: 0,
       quantity: 1,
+      unit: "piece",
+      pack_size: 1,
+      loose_unit: "",
+      loose_price: null,
       batch_number: "",
       expiry_date: null,
       description: "",
@@ -297,6 +302,10 @@ export default function ManagerView() {
       price: Number(medicine.price),
       cost: Number(medicine.cost),
       quantity: Number(medicine.quantity),
+      unit: medicine.unit || "piece",
+      pack_size: Number(medicine.pack_size ?? 1),
+      loose_unit: medicine.loose_unit ?? "",
+      loose_price: medicine.loose_price != null && medicine.loose_price !== "" ? Number(medicine.loose_price) : null,
       paid_amount: Number(medicine.paid_amount ?? Number(medicine.quantity) * Number(medicine.cost)),
       batch_number: medicine.batch_number ?? "",
       expiry_date: medicine.expiry_date ? parseISO(medicine.expiry_date) : null,
@@ -464,11 +473,11 @@ export default function ManagerView() {
     const today = purchases.filter((p) => new Date(p.created_at).toDateString() === todayKey);
     const revenue = today.reduce((s, p) => s + toNumber(p.total_price), 0);
     const profit = today.reduce((s, p) => s + toNumber(p.profit), 0);
-    const units = today.reduce((s, p) => s + toNumber(p.quantity), 0);
+    const units = today.reduce((s, p) => s + soldPacks(p), 0);
     return [
       { label: "Sales today", value: formatCurrency(revenue), icon: BadgeDollarSign, tint: "violet" },
       { label: "Profit today", value: formatCurrency(profit), icon: TrendingUp, tint: "emerald" },
-      { label: "Units sold", value: units.toLocaleString(), icon: Package, tint: "cyan" },
+      { label: "Units sold", value: trimNumber(units), icon: Package, tint: "cyan" },
     ];
   })();
 

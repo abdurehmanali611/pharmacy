@@ -41,12 +41,15 @@ import {
 } from "@/lib/actions";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { isSplittable, looseName, packName, plural, stockText } from "@/lib/packSelling";
 
 type RuleLine = {
   id: string;
   medicine_ids: string[];
   threshold: string;
   final: string;
+  /** What threshold / final count: whole packs, or loose units (tablets...). */
+  unit: "pack" | "loose";
 };
 
 const emptyLine = (): RuleLine => ({
@@ -54,6 +57,7 @@ const emptyLine = (): RuleLine => ({
   medicine_ids: [],
   threshold: "",
   final: "",
+  unit: "pack",
 });
 
 function categoryLabel(value?: string) {
@@ -119,7 +123,7 @@ export function SalesRulesSection({
       .map((m) => ({
         value: String(m.id),
         label: m.name,
-        hint: `Stock ${m.quantity}`,
+        hint: `Stock ${isSplittable(m) ? stockText(m) : m.quantity}`,
       }));
   };
 
@@ -168,12 +172,21 @@ export function SalesRulesSection({
     });
   }, [catalogMedicines, search, selectedCategory]);
 
+  const medicineById = useMemo(() => new Map(medicines.map((m) => [String(m.id), m])), [medicines]);
+  const lineMedicines = (line: RuleLine) =>
+    line.medicine_ids.map((id) => medicineById.get(id)).filter((m): m is MedicineData => Boolean(m));
+  // "Loose" only makes sense when every medicine on the line can be sold by the piece.
+  const lineAllSplittable = (line: RuleLine) => {
+    const list = lineMedicines(line);
+    return list.length > 0 && list.every((m) => isSplittable(m));
+  };
+
   const updateLine = (id: string, patch: Partial<RuleLine>) => {
     setLines((prev) => prev.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   };
 
   const saveQuantityRules = async () => {
-    const payload: { medicine_id: number; threshold: number; final?: number | null }[] = [];
+    const payload: { medicine_id: number; threshold: number; final?: number | null; unit?: "pack" | "loose" }[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -199,6 +212,7 @@ export function SalesRulesSection({
           medicine_id: Number(medicineId),
           threshold,
           final,
+          unit: line.unit === "loose" && lineAllSplittable(line) ? "loose" : "pack",
         });
       }
     }
@@ -244,7 +258,7 @@ export function SalesRulesSection({
         <WorkspaceModuleHeader
           kicker="Manager · Controls"
           title="Sales rules"
-          description="Set quantity bands that count as “many,” and mark items that always need your approval before a sale settles."
+          description="Set quantity bands and mark items that always need your approval."
         />
       </section>
 
@@ -256,8 +270,7 @@ export function SalesRulesSection({
           <div>
             <h3 className="font-display text-xl font-bold text-white">Quantity bands</h3>
             <p className="text-sm text-white/60">
-              Pick multiple medicines per line to share the same threshold and optional final.
-              Empty final means ≥ threshold. Already-ruled medicines stay unavailable.
+              Share one threshold across several medicines. Leave final empty for “or more”.
             </p>
           </div>
         </header>
@@ -268,7 +281,7 @@ export function SalesRulesSection({
               key={line.id}
               className={cn(
                 workspaceInnerPanelClass,
-                "grid items-center gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_auto]",
+                "grid items-center gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto_7rem_7rem_auto]",
                 ["tint-violet", "tint-cyan", "tint-pink", "tint-emerald", "tint-amber"][index % 5],
               )}
             >
@@ -279,11 +292,61 @@ export function SalesRulesSection({
                 </p>
                 <MultiCombobox
                   values={line.medicine_ids}
-                  onChange={(values) => updateLine(line.id, { medicine_ids: values })}
+                  onChange={(values) => {
+                    const everySplittable =
+                      values.length > 0 && values.every((id) => (medicineById.get(id) ? isSplittable(medicineById.get(id)!) : false));
+                    updateLine(line.id, { medicine_ids: values, unit: everySplittable ? line.unit : "pack" });
+                  }}
                   options={medicineOptionsForLine(line.id)}
                   placeholder="Select one or more medicines…"
                   searchPlaceholder="Search medicines…"
                 />
+              </div>
+              <div>
+                <p className="mb-1.5 flex h-7 items-center text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-200">
+                  Counts in
+                </p>
+                {(() => {
+                  const list = lineMedicines(line);
+                  const canLoose = lineAllSplittable(line);
+                  const packWord = list.length ? plural(packName(list[0]), 2) : "packs";
+                  const looseWord = canLoose ? plural(list.every((m) => looseName(m) === looseName(list[0])) ? looseName(list[0]) : "piece", 2) : "loose";
+                  return (
+                    <div
+                      role="radiogroup"
+                      aria-label="Count the band in"
+                      className="inline-flex h-11 items-center rounded-xl border border-white/14 bg-[#120f3a] p-0.5"
+                    >
+                      {([
+                        ["pack", packWord],
+                        ["loose", looseWord],
+                      ] as const).map(([unit, word]) => {
+                        const active = (line.unit === "loose" && canLoose ? "loose" : "pack") === unit;
+                        const off = unit === "loose" && !canLoose;
+                        return (
+                          <button
+                            key={unit}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            disabled={off}
+                            title={off ? "Only medicines set up for loose selling can be counted by the piece" : undefined}
+                            onClick={() => updateLine(line.id, { unit })}
+                            className={cn(
+                              "h-full rounded-[0.65rem] px-3 text-xs font-bold capitalize transition",
+                              active
+                                ? "bg-[linear-gradient(135deg,rgba(168,85,247,0.6),rgba(236,72,153,0.45))] text-white"
+                                : "text-white/55 hover:text-white/85",
+                              off && "cursor-not-allowed opacity-40 hover:text-white/55",
+                            )}
+                          >
+                            {word}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
               <div>
                 <p className="mb-1.5 flex h-7 items-center text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-200">
@@ -355,9 +418,22 @@ export function SalesRulesSection({
                   <TableRow key={rule.id} className="border-white/10">
                     <TableCell className="font-medium text-white">{rule.medicine_name}</TableCell>
                     <TableCell className="text-white/80">
-                      {rule.final == null
-                        ? `≥ ${rule.threshold}`
-                        : `${rule.threshold} – ${rule.final}`}
+                      {(() => {
+                        const med = medicineById.get(String(rule.medicine_id));
+                        const word = med ? plural(rule.unit === "loose" ? looseName(med) : packName(med), 2) : "";
+                        return (
+                          <span className="inline-flex flex-wrap items-center gap-2">
+                            <span>
+                              {rule.final == null ? `≥ ${rule.threshold}` : `${rule.threshold} – ${rule.final}`}
+                            </span>
+                            {word ? (
+                              <span className="rounded-full border border-white/15 bg-white/8 px-2 py-0.5 text-[0.65rem] font-bold capitalize text-white/75">
+                                {word}
+                              </span>
+                            ) : null}
+                          </span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <ConfirmDeleteButton
@@ -386,7 +462,7 @@ export function SalesRulesSection({
             <div>
               <h3 className="font-display text-xl font-bold text-white">Needs approval</h3>
               <p className="text-sm text-white/60">
-                Same catalog layout as the pharmacist desk. Select cards, then mark them for approval.
+                Pick cards, then mark them for approval.
               </p>
             </div>
           </div>

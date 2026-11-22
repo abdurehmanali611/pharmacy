@@ -135,7 +135,7 @@ export function CashoutManagementSection({
             icon={Receipt}
             tint="pink"
             title="Cashout history"
-            subtitle={`Showing ${filteredCashouts.length} of ${cashouts.length} · every cashout is saved per pharmacy with amount and reason`}
+            subtitle={`Showing ${filteredCashouts.length} of ${cashouts.length} · amount and reason`}
             right={
               <ExportMenu
                 build={() => {

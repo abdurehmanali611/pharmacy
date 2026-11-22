@@ -54,6 +54,7 @@ import {
   type ExpiryTone,
 } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
+import { soldPacks, trimNumber } from "@/lib/packSelling";
 
 const purchaseColumns: ColumnDef<PurchaseData>[] = [
   { accessorKey: "medicine_name", header: "Medicine" },
@@ -345,7 +346,7 @@ export function ManagerReportSection({
   const overview = useMemo(() => {
     const totalSales = filteredPurchases.reduce((sum, item) => sum + toNumber(item.total_price), 0);
     const totalProfit = filteredPurchases.reduce((sum, item) => sum + toNumber(item.profit), 0);
-    const totalUnits = filteredPurchases.reduce((sum, item) => sum + toNumber(item.quantity), 0);
+    const totalUnits = Math.round(filteredPurchases.reduce((sum, item) => sum + soldPacks(item), 0) * 100) / 100;
     const totalCashout = filteredCashouts.reduce((sum, item) => sum + toNumber(item.amount), 0);
     return { totalSales, totalProfit, totalUnits, totalCashout, net: totalProfit - totalCashout };
   }, [filteredCashouts, filteredPurchases]);
@@ -356,7 +357,7 @@ export function ManagerReportSection({
     for (const p of filteredPurchases) {
       const key = p.medicine_name;
       const row = sold.get(key) ?? { qty: 0, revenue: 0 };
-      row.qty += toNumber(p.quantity);
+      row.qty += soldPacks(p);
       row.revenue += toNumber(p.total_price);
       sold.set(key, row);
     }
@@ -420,7 +421,7 @@ export function ManagerReportSection({
       <WorkspacePanel>
         <WorkspaceSectionHeader
           title="Analytics command center"
-          description="Sales, credit, expiry and loss intelligence for your pharmacy, in one place."
+          description="Sales, credit, expiry and losses at a glance."
           action={
             <ExportMenu
               build={() => {
@@ -452,6 +453,7 @@ export function ManagerReportSection({
                         { header: "Sold by" },
                         { header: "Customer" },
                         { header: "Qty", kind: "number" },
+                        { header: "Sold as" },
                         { header: "Discount %", kind: "number" },
                         { header: "Total", kind: "money" },
                         { header: "Profit", kind: "money" },
@@ -462,11 +464,12 @@ export function ManagerReportSection({
                         p.sold_by_name ?? "",
                         p.customer_name ?? "",
                         toNumber(p.quantity),
+                        p.unit_name ?? "",
                         toNumber(p.discount_percent),
                         toNumber(p.total_price),
                         toNumber(p.profit),
                       ]),
-                      totals: ["Total", "", "", "", overview.totalUnits, "", overview.totalSales, overview.totalProfit],
+                      totals: ["Total", "", "", "", "", "", "", overview.totalSales, overview.totalProfit],
                     },
                     {
                       name: "Top sellers",
@@ -562,7 +565,7 @@ export function ManagerReportSection({
             <KpiCard
               label="Total sales"
               value={formatCurrency(overview.totalSales)}
-              hint={`${overview.totalUnits} units sold`}
+              hint={`${trimNumber(overview.totalUnits)} units sold`}
               detail={`${filteredPurchases.length} sale line${filteredPurchases.length === 1 ? "" : "s"} in this period`}
               icon={BadgeDollarSign}
               tint="tint-violet"
@@ -634,7 +637,7 @@ export function ManagerReportSection({
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <WorkspaceStat label="Units sold" value={overview.totalUnits.toLocaleString()} icon={Wallet} hint={`${filteredPurchases.length} sale line${filteredPurchases.length === 1 ? "" : "s"}`} />
+        <WorkspaceStat label="Units sold" value={trimNumber(overview.totalUnits)} icon={Wallet} hint={`${filteredPurchases.length} sale line${filteredPurchases.length === 1 ? "" : "s"}`} />
         <WorkspaceStat label="Cost of goods sold" value={formatCurrency(overview.totalSales - overview.totalProfit)} icon={BadgeDollarSign} hint="What the sold stock cost" />
         <WorkspaceStat label="Profit margin" value={`${overview.totalSales > 0 ? ((overview.totalProfit / overview.totalSales) * 100).toFixed(1) : "0.0"}%`} icon={TrendingUp} hint={`Profit ${formatCurrency(overview.totalProfit)}`} />
         <WorkspaceStat label="Unpaid invoices" value={formatCurrency(periodUnpaidTotal)} icon={AlertTriangle} hint={`${periodUnpaid.length} invoice${periodUnpaid.length === 1 ? "" : "s"} dated in this period`} />
@@ -865,7 +868,7 @@ export function ManagerReportSection({
           icon={Trophy}
           tint="violet"
           title="Sales intelligence"
-          subtitle="Revenue trend, stock health and best sellers for the selected period"
+          subtitle="Revenue, stock health and best sellers for the period"
         />
         <ManagerAnalyticsCharts
           purchases={filteredPurchases}

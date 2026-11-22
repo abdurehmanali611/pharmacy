@@ -11,6 +11,7 @@ import type { PendingSaleData, PurchaseData } from "@/lib/actions";
 import { formatCurrency } from "@/lib/format";
 import { toNumber } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
+import { soldPacks, trimNumber } from "@/lib/packSelling";
 
 const TRIGGER_LABEL: Record<string, { label: string; tone: string }> = {
   quantity_band: { label: "Quantity band", tone: "border-cyan-300/45 bg-cyan-400/15 text-cyan-100" },
@@ -43,7 +44,7 @@ export function ReportRuleImpact({
 }) {
   const stats = useMemo(() => {
     const total = purchases.reduce((s, p) => s + toNumber(p.total_price), 0);
-    const units = purchases.reduce((s, p) => s + toNumber(p.quantity), 0);
+    const units = purchases.reduce((s, p) => s + soldPacks(p), 0);
 
     let regular = 0;
     let discountOnly = 0;
@@ -63,18 +64,18 @@ export function ReportRuleImpact({
       const r = isRule(p);
       if (isAttachment(p)) {
         attachment += revenue;
-        attachmentUnits += toNumber(p.quantity);
+        attachmentUnits += soldPacks(p);
       } else if (d && r) both += revenue;
       else if (d) discountOnly += revenue;
       else if (r) ruleOnly += revenue;
       else regular += revenue;
       if (d) {
         discountValue += discountGiven(p);
-        discountUnits += toNumber(p.quantity);
+        discountUnits += soldPacks(p);
         percents.push(toNumber(p.discount_percent));
       }
       if (r) {
-        ruleUnits += toNumber(p.quantity);
+        ruleUnits += soldPacks(p);
         adjustment += priceAdjustment(p);
       }
     }
@@ -134,7 +135,7 @@ export function ReportRuleImpact({
         icon={Scale}
         tint="fuchsia"
         title="Sales rules & discounts vs overall sales"
-        subtitle="What happened under your quantity bands, approval holds and customer discounts in this period"
+        subtitle="How bands, approvals and discounts shaped sales this period"
         right={
           <div className="flex flex-wrap gap-2">
             <Chip className="border-cyan-300/40 bg-cyan-400/12 text-cyan-100">{ruleCounts.quantity} quantity bands</Chip>
@@ -148,7 +149,7 @@ export function ReportRuleImpact({
         <div className="workspace-inner-surface tint-violet p-4">
           <p className="tint-text text-[0.65rem] font-bold uppercase tracking-[0.14em]">Overall sales</p>
           <p className="mt-2 font-display text-2xl font-bold text-white">{formatCurrency(stats.total)}</p>
-          <p className="mt-1 text-sm text-white/70">{stats.units} units · {purchases.length} sale line{purchases.length === 1 ? "" : "s"}</p>
+          <p className="mt-1 text-sm text-white/70">{trimNumber(stats.units)} units · {purchases.length} sale line{purchases.length === 1 ? "" : "s"}</p>
         </div>
         <div className="workspace-inner-surface tint-fuchsia p-4">
           <div className="flex items-start justify-between gap-2">
@@ -292,7 +293,7 @@ export function ReportRuleImpact({
                       <TableCell>
                         {trigger ? <Chip className={trigger.tone}>{trigger.label}</Chip> : <span className="text-white/45">—</span>}
                       </TableCell>
-                      <TableCell className="tabular-nums text-white/85">{p.quantity}</TableCell>
+                      <TableCell className="tabular-nums text-white/85">{p.quantity}{p.sale_unit === "loose" && p.unit_name ? <span className="ml-1 text-xs text-fuchsia-200/80">{p.unit_name}</span> : null}</TableCell>
                       <TableCell className="tabular-nums text-white/60 line-through decoration-white/30">
                         {p.list_price != null ? formatCurrency(toNumber(p.list_price)) : "—"}
                       </TableCell>
@@ -319,7 +320,7 @@ export function ReportRuleImpact({
             icon={Scale}
             tint="fuchsia"
             title="No rule or discount sales in this period"
-            description="Sales that were held by a rule or sold to a discounted customer will appear here."
+            description="Held or discounted sales will appear here."
           />
         )}
       </div>

@@ -136,7 +136,7 @@ export function BatchInvoiceDialog({
             </span>
             <div>
               <h2 className="font-display text-xl font-bold">Invoice intake</h2>
-              <p className="text-sm text-white/60">Record multiple supplier bills or sales invoices with individual dates and payment details.</p>
+              <p className="text-sm text-white/60">Record several bills or invoices at once.</p>
             </div>
           </div>
         </header>

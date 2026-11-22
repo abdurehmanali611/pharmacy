@@ -224,6 +224,12 @@ export interface MedicineData {
     price: number;
     cost: number;
     quantity: number;
+    unit?: string;
+    pack_size?: number;
+    loose_unit?: string;
+    loose_price?: number | string | null;
+    loose_unit_price?: number | string | null;
+    loose_stock?: number;
     batch_number: string;
     expiry_date?: string | null;
     description: string;
@@ -246,6 +252,10 @@ export interface addMedicine {
     price: number;
     cost: number;
     quantity: number;
+    unit?: string;
+    pack_size?: number;
+    loose_unit?: string;
+    loose_price?: number | null;
     expiry_date?: string | Date | null;
     description: string;
     batch_number: string;
@@ -262,6 +272,9 @@ export interface PurchaseData {
     medicine_id?: number | null;
     medicine_name: string;
     quantity: number;
+    sale_unit?: "pack" | "loose";
+    pack_quantity?: number | string;
+    unit_name?: string;
     sold_by_id?: number | null;
     sold_by_name?: string;
     customer_name?: string;
@@ -280,6 +293,7 @@ export interface purchaseMedicine {
     medicine_id?: number;
     medicine_name: string;
     quantity: number;
+    sale_unit?: "pack" | "loose";
     price: number;
     total_price: number;
 }
@@ -879,6 +893,7 @@ export type QuantitySaleRuleData = {
   medicine_name: string;
   threshold: number;
   final: number | null;
+  unit?: "pack" | "loose";
   created_at: string;
   updated_at: string;
 };
@@ -897,6 +912,8 @@ export type PendingSaleLineData = {
   id: number;
   medicine_id: number | null;
   medicine_name: string;
+  sale_unit?: "pack" | "loose";
+  unit_name?: string;
   original_quantity: number;
   original_price: number;
   trigger: "none" | "quantity_band" | "needs_approval";
@@ -936,7 +953,7 @@ export async function fetchQuantitySaleRules() {
 }
 
 export async function createBulkQuantitySaleRules(
-  items: { medicine_id: number; threshold: number; final?: number | null }[],
+  items: { medicine_id: number; threshold: number; final?: number | null; unit?: "pack" | "loose" }[],
   setLoading: (loading: boolean) => void,
 ) {
   try {

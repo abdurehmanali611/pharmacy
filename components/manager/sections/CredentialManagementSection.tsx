@@ -176,7 +176,7 @@ export function CredentialManagementSection({
             icon={UserPlus}
             tint="violet"
             title="Create sales agents"
-            subtitle="Add one or many pharmacist accounts at once. The whole team signs in with one username; each agent has their own password"
+            subtitle="Add several agents at once. One shared username; each agent keeps their own password"
           />
 
           {savedUsername ? (
@@ -189,7 +189,7 @@ export function CredentialManagementSection({
                   Sales username: <span className="font-mono text-cyan-100">@{savedUsername}</span>
                 </p>
                 <p className="text-xs text-white/65">
-                  Every sales agent signs in with this username. To change it, edit any sales agent in the table below; the new username applies to the whole team.
+                  Every agent signs in with this username. Edit any agent below to change it for the whole team.
                 </p>
               </div>
             </div>
@@ -303,7 +303,7 @@ export function CredentialManagementSection({
 
           <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-5">
             <p className="min-w-0 flex-1 basis-72 text-sm text-white/60">
-              The username is saved with the first agents; to change it, edit any agent and it updates for the whole team. Every agent needs a password no other sales agent uses anywhere on the platform.
+              Each agent needs a password that no other sales agent uses.
             </p>
             <Button type="button" size="lg" className="ml-auto min-w-56" disabled={saving || loading} onClick={() => void saveAgents()}>
               <Sparkles className="mr-1.5 h-4 w-4" />
@@ -319,7 +319,7 @@ export function CredentialManagementSection({
             icon={Users}
             tint="cyan"
             title="Sales agents"
-            subtitle={`Showing ${filtered.length} of ${pharmacists.length} · pharmacist accounts linked to this pharmacy`}
+            subtitle={`Showing ${filtered.length} of ${pharmacists.length} · accounts in this pharmacy`}
           />
           <ListToolbar search={search} onSearchChange={setSearch} searchPlaceholder="Search name or username…" />
           <Table>
@@ -444,7 +444,7 @@ export function CredentialManagementSection({
               </span>
               Edit sales agent
             </DialogTitle>
-            <DialogDescription>Update the agent&apos;s name or the team username. The saved password is shown masked; type over it to change it.</DialogDescription>
+            <DialogDescription>Edit the name or team username. Type over the masked password to change it.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>

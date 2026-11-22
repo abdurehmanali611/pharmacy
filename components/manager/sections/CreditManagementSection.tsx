@@ -155,7 +155,7 @@ export function CreditManagementSection({
       <WorkspacePanel>
         <WorkspaceSectionHeader
           title="Credit management"
-          description="Pay off supplier credit in full or in part. Inventory, reports and the medicines table update right away."
+          description="Pay supplier credit in full or in part. Everything updates instantly."
           action={
             <ExportMenu
               build={() => {
@@ -239,11 +239,11 @@ export function CreditManagementSection({
           icon={BadgeCheck}
           tint="emerald"
           title="Record a payment"
-          subtitle="Pick the credit items you are paying and how much of each"
+          subtitle="Choose the credit items and how much to pay"
         />
 
         {creditItems.length === 0 ? (
-          <EmptyState icon={PackageCheck} tint="emerald" title="No credit to pay" description="Every stock line is fully paid. Items bought on credit will show up here." />
+          <EmptyState icon={PackageCheck} tint="emerald" title="No credit to pay" description="Every line is fully paid. New credit items will appear here." />
         ) : (
           <>
             <div className="space-y-3">
@@ -403,7 +403,7 @@ export function CreditManagementSection({
           icon={History}
           tint="violet"
           title="Payment history"
-          subtitle="Edit a payment and every total follows it; delete one and the credit goes back to what it was"
+          subtitle="Edit a payment and totals follow; delete it to restore the credit"
         />
         {payments.length ? (
           <div className="overflow-x-auto rounded-2xl border border-white/10">
@@ -446,7 +446,7 @@ export function CreditManagementSection({
                             iconOnly
                             ariaLabel="Delete payment"
                             title="Delete this payment?"
-                            description={`${formatCurrency(toNumber(pay.amount))} paid on ${pay.medicine_name} will be removed and its credit goes back to what it was before this payment.`}
+                            description={`${formatCurrency(toNumber(pay.amount))} paid on ${pay.medicine_name} will be removed and the credit restored.`}
                             onConfirm={() => removePayment(pay)}
                           />
                         </div>

@@ -152,7 +152,7 @@ export function SupplierManagementSection({
             icon={Truck}
             tint="teal"
             title="Supplier records"
-            subtitle={`Showing ${filteredSuppliers.length} of ${suppliers.length} · each supplier shows linked medicines and invoices`}
+            subtitle={`Showing ${filteredSuppliers.length} of ${suppliers.length} · linked medicines and invoices`}
             right={
               <ExportMenu
                 pdf={false}

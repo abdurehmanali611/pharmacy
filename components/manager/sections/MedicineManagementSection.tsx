@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import type { UseFormReturn } from "react-hook-form";
 import { Controller } from "react-hook-form";
@@ -33,6 +33,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
+import { MEDICINE_UNITS, quantityWithUnit, unitLabel } from "@/lib/medicineUnits";
+import { PackSellingPanel } from "@/components/manager/PackSellingPanel";
+import { isSplittable, stockText } from "@/lib/packSelling";
 import { DRUG_CATEGORIES } from "@/constants";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -137,6 +140,12 @@ export function MedicineManagementSection({
     null,
   );
   const selectedItems = useMemo(() => Object.values(selected), [selected]);
+
+  // Whether the edit dialog's "sell loose" panel is switched on.
+  const [splitOn, setSplitOn] = useState(false);
+  useEffect(() => {
+    setSplitOn(Number(medicineToEdit?.pack_size ?? 1) > 1);
+  }, [medicineToEdit?.id, medicineToEdit?.pack_size]);
   const pageSelectedCount = medicines.filter((item) => selected[String(item.id)]).length;
   const allPageSelected = medicines.length > 0 && pageSelectedCount === medicines.length;
 
@@ -254,16 +263,37 @@ export function MedicineManagementSection({
                     labelClassName={medicineEditLabelClass}
                     inputClassName={medicineEditControlClass}
                   />
-                  <CustomFormField
-                    name="quantity"
-                    control={form.control}
-                    fieldType={formFieldTypes.INPUT}
-                    label="Quantity"
-                    placeholder="0"
-                    type="number"
-                    labelClassName={medicineEditLabelClass}
-                    inputClassName={medicineEditControlClass}
-                  />
+                  <div className="space-y-2">
+                    <label htmlFor="quantity" className={medicineEditLabelClass}>Quantity &amp; unit</label>
+                    <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-2">
+                      <CustomFormField
+                        name="quantity"
+                        control={form.control}
+                        fieldType={formFieldTypes.INPUT}
+                        placeholder="0"
+                        type="number"
+                        inputClassName={medicineEditControlClass}
+                      />
+                      <Controller
+                        name="unit"
+                        control={form.control}
+                        render={({ field }) => (
+                          <Combobox
+                            id="medicine-unit"
+                            value={field.value}
+                            onChange={field.onChange}
+                            options={MEDICINE_UNITS.map((u) => ({ label: u.label, value: u.value }))}
+                            placeholder="Unit"
+                            searchPlaceholder="Search units..."
+                            className={medicineEditControlClass}
+                          />
+                        )}
+                      />
+                    </div>
+                    {form.formState.errors.unit ? (
+                      <p className="text-sm text-destructive">{form.formState.errors.unit.message}</p>
+                    ) : null}
+                  </div>
                   <CustomFormField
                     name="batch_number"
                     control={form.control}
@@ -293,6 +323,32 @@ export function MedicineManagementSection({
                     inputClassName={medicineEditControlClass}
                   />
                 </div>
+                <PackSellingPanel
+                  enabled={splitOn}
+                  onEnabledChange={(on) => {
+                    setSplitOn(on);
+                    if (on) {
+                      const current = Number(form.getValues("pack_size") ?? 1);
+                      form.setValue("pack_size", current > 1 ? current : 10, { shouldDirty: true });
+                      form.setValue("loose_unit", form.getValues("loose_unit") || "tablet", { shouldDirty: true });
+                    } else {
+                      form.setValue("pack_size", 1, { shouldDirty: true });
+                      form.setValue("loose_unit", "", { shouldDirty: true });
+                      form.setValue("loose_price", null, { shouldDirty: true });
+                    }
+                  }}
+                  packSize={form.watch("pack_size") != null ? String(form.watch("pack_size")) : ""}
+                  onPackSizeChange={(v) => form.setValue("pack_size", v === "" ? undefined : Math.floor(Number(v)), { shouldDirty: true })}
+                  looseUnit={form.watch("loose_unit") ?? ""}
+                  onLooseUnitChange={(v) => form.setValue("loose_unit", v, { shouldDirty: true })}
+                  loosePrice={form.watch("loose_price") != null ? String(form.watch("loose_price")) : ""}
+                  onLoosePriceChange={(v) => form.setValue("loose_price", v === "" ? null : Number(v), { shouldDirty: true })}
+                  packLabel={unitLabel(form.watch("unit")).toLowerCase()}
+                  salePrice={Number(form.watch("price") || 0)}
+                  cost={Number(form.watch("cost") || 0)}
+                  inputClassName={medicineEditControlClass}
+                  labelClassName={medicineEditLabelClass}
+                />
                 <div className="rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/6 p-4">
                   <PaidSummary
                     received={Number(medicineToEdit.received_quantity ?? medicineToEdit.quantity) + (Number(form.watch("quantity") || 0) - Number(medicineToEdit.quantity))}
@@ -360,7 +416,7 @@ export function MedicineManagementSection({
               icon={Pill}
               tint="emerald"
               title="Medicine inventory"
-              subtitle="Search, filter, and act on stock levels and expiry urgency in real time"
+              subtitle="Search, filter and act on stock and expiry"
               right={
                 <ExportMenu
                   pdf={false}
@@ -379,6 +435,9 @@ export function MedicineManagementSection({
                             { header: "Supplier" },
                             { header: "Batch" },
                             { header: "In stock", kind: "number" },
+                            { header: "Unit" },
+                            { header: "Pack size", kind: "number" },
+                            { header: "Loose stock", kind: "number" },
                             { header: "Received", kind: "number" },
                             { header: "Cost price", kind: "money" },
                             { header: "Sale price", kind: "money" },
@@ -393,6 +452,9 @@ export function MedicineManagementSection({
                             m.supplier_name ?? "",
                             m.batch_number ?? "",
                             Number(m.quantity || 0),
+                            unitLabel(m.unit),
+                            Number(m.pack_size ?? 1),
+                            Number(m.loose_stock ?? 0),
                             Number(m.received_quantity ?? m.quantity ?? 0),
                             Number(m.cost || 0),
                             Number(m.price || 0),
@@ -542,7 +604,7 @@ export function MedicineManagementSection({
                                 >
                                   {stockLevel === "critical" ? "CRITICAL" : stockLevel === "low" ? "LOW" : "OK"}
                                 </Badge>
-                                <p className="text-xs font-semibold text-white/70">{item.quantity} units</p>
+                                <p className="text-xs font-semibold text-white/70">{isSplittable(item) ? stockText(item) : quantityWithUnit(item.quantity, item.unit)}</p>
                               </div>
                             );
                           })()}
@@ -637,7 +699,7 @@ export function MedicineManagementSection({
                           icon={Pill}
                           tint="emerald"
                           title="No medicines found"
-                          description="Try another search, or add stock with the intake form above."
+                          description="Try another search or add stock above."
                         />
                       </TableCell>
                     </TableRow>
@@ -657,8 +719,7 @@ export function MedicineManagementSection({
             <div className={cn(workspaceInnerPanelClass, "p-4 text-sm")}>
               <p className="font-semibold text-white/85">Excel import format</p>
               <p className="mt-2 leading-6 text-white/50">
-                Columns: name, category, price, cost, quantity, batch_number, expiry_date, description,
-                supplier_name, supplier_phone, supplier_email. Suppliers are auto-created when missing.
+                Columns: name, category, price, cost, quantity, batch_number, expiry_date, description, supplier_name, supplier_phone, supplier_email. Missing suppliers are created for you.
               </p>
               <Button asChild variant="outline" className="mt-4 border-white/12 bg-white/5">
                 <a href="/sample/medicines-sample.xlsx" download>
